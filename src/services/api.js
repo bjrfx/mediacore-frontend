@@ -20,7 +20,6 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     console.log(`[API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-    console.log('[API] Headers:', config.headers);
     return config;
   },
   (error) => {
@@ -32,7 +31,7 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
-    console.log('[API] Response:', response.status, response.data);
+    console.log('[API] Response:', response.status);
     return response;
   },
   (error) => {
@@ -46,6 +45,15 @@ api.interceptors.response.use(
   }
 );
 
+// Helper to create auth headers
+const getAuthHeaders = async () => {
+  const token = await getIdToken();
+  return {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+};
+
 // ============================================
 // PUBLIC API (uses API Key)
 // ============================================
@@ -56,6 +64,8 @@ export const publicApi = {
     const response = await api.get('/health');
     return response.data;
   },
+
+  // ---- Media ----
 
   // Get all media
   getMedia: async (options = {}) => {
@@ -84,33 +94,100 @@ export const publicApi = {
     });
     return response.data;
   },
+
+  // ---- Artists ----
+
+  // Get all artists
+  getArtists: async (options = {}) => {
+    const { limit = 50, orderBy = 'createdAt', order = 'desc' } = options;
+    const params = new URLSearchParams({ limit: String(limit), orderBy, order });
+
+    const response = await api.get(`/api/artists?${params}`, {
+      headers: { 'x-api-key': API_KEY },
+    });
+    return response.data;
+  },
+
+  // Get single artist by ID
+  getArtistById: async (id) => {
+    const response = await api.get(`/api/artists/${id}`, {
+      headers: { 'x-api-key': API_KEY },
+    });
+    return response.data;
+  },
+
+  // Get all albums for an artist
+  getArtistAlbums: async (artistId, options = {}) => {
+    const { orderBy = 'releaseDate', order = 'desc' } = options;
+    const params = new URLSearchParams({ orderBy, order });
+
+    const response = await api.get(`/api/artists/${artistId}/albums?${params}`, {
+      headers: { 'x-api-key': API_KEY },
+    });
+    return response.data;
+  },
+
+  // Get all media for an artist (across all albums + singles)
+  getArtistMedia: async (artistId, options = {}) => {
+    const { type, orderBy = 'createdAt', order = 'desc' } = options;
+    const params = new URLSearchParams({ orderBy, order });
+    if (type) params.append('type', type);
+
+    const response = await api.get(`/api/artists/${artistId}/media?${params}`, {
+      headers: { 'x-api-key': API_KEY },
+    });
+    return response.data;
+  },
+
+  // ---- Albums ----
+
+  // Get all albums
+  getAlbums: async (options = {}) => {
+    const { artistId, limit = 50, orderBy = 'releaseDate', order = 'desc' } = options;
+    const params = new URLSearchParams({ limit: String(limit), orderBy, order });
+    if (artistId) params.append('artistId', artistId);
+
+    const response = await api.get(`/api/albums?${params}`, {
+      headers: { 'x-api-key': API_KEY },
+    });
+    return response.data;
+  },
+
+  // Get single album by ID (includes artist info)
+  getAlbumById: async (id) => {
+    const response = await api.get(`/api/albums/${id}`, {
+      headers: { 'x-api-key': API_KEY },
+    });
+    return response.data;
+  },
+
+  // Get all media/tracks in an album (ordered by track number)
+  getAlbumMedia: async (albumId) => {
+    const response = await api.get(`/api/albums/${albumId}/media`, {
+      headers: { 'x-api-key': API_KEY },
+    });
+    return response.data;
+  },
 };
 
 // ============================================
 // ADMIN API (uses Firebase Auth)
 // ============================================
 
-// Helper to create auth headers
-const getAuthHeaders = async () => {
-  const token = await getIdToken();
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
-};
-
 export const adminApi = {
   // ---- Media Management ----
 
-  uploadMedia: async (file, title, subtitle = '', type = 'video', onProgress) => {
+  uploadMedia: async (file, title, subtitle = '', type = 'video', onProgress, artistId, albumId) => {
     const token = await getIdToken();
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
     formData.append('subtitle', subtitle);
     formData.append('type', type);
+    if (artistId) formData.append('artistId', artistId);
+    if (albumId) formData.append('albumId', albumId);
 
-    console.log('[API] Upload:', { fileName: file.name, fileType: file.type, title, type });
+    console.log('[API] Upload:', { fileName: file.name, fileType: file.type, title, type, artistId, albumId });
 
     const response = await api.post('/admin/media', formData, {
       headers: {
@@ -136,6 +213,77 @@ export const adminApi = {
   deleteMedia: async (id, deleteFile = true) => {
     const headers = await getAuthHeaders();
     const response = await api.delete(`/admin/media/${id}?deleteFile=${deleteFile}`, { headers });
+    return response.data;
+  },
+
+  // ---- Artists Management ----
+
+  createArtist: async (data) => {
+    const headers = await getAuthHeaders();
+    const response = await api.post('/admin/artists', data, { headers });
+    return response.data;
+  },
+
+  updateArtist: async (id, data) => {
+    const headers = await getAuthHeaders();
+    const response = await api.put(`/admin/artists/${id}`, data, { headers });
+    return response.data;
+  },
+
+  deleteArtist: async (id, cascade = false) => {
+    const headers = await getAuthHeaders();
+    const response = await api.delete(`/admin/artists/${id}?cascade=${cascade}`, { headers });
+    return response.data;
+  },
+
+  // ---- Albums Management ----
+
+  createAlbum: async (data) => {
+    const headers = await getAuthHeaders();
+    const response = await api.post('/admin/albums', data, { headers });
+    return response.data;
+  },
+
+  updateAlbum: async (id, data) => {
+    const headers = await getAuthHeaders();
+    const response = await api.put(`/admin/albums/${id}`, data, { headers });
+    return response.data;
+  },
+
+  deleteAlbum: async (id) => {
+    const headers = await getAuthHeaders();
+    const response = await api.delete(`/admin/albums/${id}`, { headers });
+    return response.data;
+  },
+
+  // ---- Album-Media Relationships ----
+
+  // Add media to an album with track number
+  addMediaToAlbum: async (albumId, mediaId, trackNumber) => {
+    const headers = await getAuthHeaders();
+    const response = await api.post(
+      `/admin/albums/${albumId}/media`,
+      { mediaId, trackNumber },
+      { headers }
+    );
+    return response.data;
+  },
+
+  // Remove media from an album
+  removeMediaFromAlbum: async (albumId, mediaId) => {
+    const headers = await getAuthHeaders();
+    const response = await api.delete(`/admin/albums/${albumId}/media/${mediaId}`, { headers });
+    return response.data;
+  },
+
+  // Reorder tracks in an album
+  reorderAlbumTracks: async (albumId, tracks) => {
+    const headers = await getAuthHeaders();
+    const response = await api.put(
+      `/admin/albums/${albumId}/media/reorder`,
+      { tracks },
+      { headers }
+    );
     return response.data;
   },
 

@@ -13,8 +13,9 @@ import {
   Disc,
   User,
   Share2,
+  AlertCircle,
 } from 'lucide-react';
-import { useContentStore, usePlayerStore, useLibraryStore } from '../store';
+import { usePlayerStore, useLibraryStore } from '../store';
 import { publicApi } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -31,32 +32,38 @@ export default function ArtistPage() {
   const { artistId } = useParams();
   const { playTrack, setQueue } = usePlayerStore();
   const { toggleFavorite, isFavorite } = useLibraryStore();
+
+  // Fetch artist details
   const {
-    getArtist,
-    getAlbumsByArtist,
-    getMediaByArtist,
-    getMediaByAlbum,
-    mediaAlbumMap,
-  } = useContentStore();
-
-  const artist = getArtist(artistId);
-  const artistAlbums = getAlbumsByArtist(artistId);
-  const artistMediaIds = getMediaByArtist(artistId);
-
-  // Fetch all media
-  const { data: mediaData, isLoading } = useQuery({
-    queryKey: ['media'],
-    queryFn: () => publicApi.getMedia({ limit: 500 }),
+    data: artistData,
+    isLoading: artistLoading,
+    isError: artistError,
+    error: artistErrorMsg,
+  } = useQuery({
+    queryKey: ['artist', artistId],
+    queryFn: () => publicApi.getArtistById(artistId),
+    enabled: !!artistId,
   });
 
-  const allMedia = mediaData?.data || [];
+  // Fetch artist's albums
+  const { data: albumsData, isLoading: albumsLoading } = useQuery({
+    queryKey: ['artist', artistId, 'albums'],
+    queryFn: () => publicApi.getArtistAlbums(artistId),
+    enabled: !!artistId,
+  });
 
-  // Get artist's media with full info
-  const artistMedia = useMemo(() => {
-    return allMedia.filter((m) => artistMediaIds.includes(m.id));
-  }, [allMedia, artistMediaIds]);
+  // Fetch artist's media
+  const { data: mediaData, isLoading: mediaLoading } = useQuery({
+    queryKey: ['artist', artistId, 'media'],
+    queryFn: () => publicApi.getArtistMedia(artistId),
+    enabled: !!artistId,
+  });
 
-  // Calculate total duration and track count
+  const artist = artistData?.data;
+  const artistAlbums = useMemo(() => albumsData?.data || [], [albumsData?.data]);
+  const artistMedia = useMemo(() => mediaData?.data || [], [mediaData?.data]);
+
+  // Calculate stats
   const stats = useMemo(() => {
     let totalDuration = 0;
     artistMedia.forEach((track) => {
@@ -86,27 +93,49 @@ export default function ArtistPage() {
     }
   };
 
-  // Play album
-  const handlePlayAlbum = (album) => {
-    const trackIds = getMediaByAlbum(album.id);
-    const tracks = trackIds.map((id) => allMedia.find((m) => m.id === id)).filter(Boolean);
-    if (tracks.length > 0) {
-      setQueue(tracks, 0);
-      playTrack(tracks[0], tracks);
-    }
-  };
-
   // Play single track
   const handlePlayTrack = (track, context) => {
     playTrack(track, context);
   };
 
-  if (!artist) {
+  // Loading state
+  if (artistLoading) {
+    return (
+      <div className="space-y-8 pb-32">
+        <div className="flex flex-col md:flex-row items-center md:items-end gap-6 py-8">
+          <Skeleton className="w-48 h-48 md:w-56 md:h-56 rounded-full" />
+          <div className="flex-1 text-center md:text-left space-y-4">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-12 w-64" />
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+        </div>
+        <div className="flex gap-4">
+          <Skeleton className="h-12 w-28 rounded-full" />
+          <Skeleton className="h-12 w-28 rounded-full" />
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (artistError || !artist) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center">
-        <User className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Artist not found</h2>
-        <p className="text-muted-foreground mb-4">This artist doesn't exist or has been removed</p>
+        {artistError ? (
+          <>
+            <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Failed to load artist</h2>
+            <p className="text-muted-foreground mb-4">{artistErrorMsg?.message || 'An error occurred'}</p>
+          </>
+        ) : (
+          <>
+            <User className="h-16 w-16 text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Artist not found</h2>
+            <p className="text-muted-foreground mb-4">This artist doesn't exist or has been removed</p>
+          </>
+        )}
         <Button asChild>
           <Link to="/">Go Home</Link>
         </Button>
@@ -219,64 +248,30 @@ export default function ArtistPage() {
       </div>
 
       {/* Albums Section */}
-      {artistAlbums.length > 0 && (
+      {albumsLoading ? (
         <section>
           <h2 className="text-2xl font-bold mb-4">Albums</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {artistAlbums.map((album, index) => {
-              const albumTrackIds = getMediaByAlbum(album.id);
-              const albumTracks = albumTrackIds
-                .map((id) => allMedia.find((m) => m.id === id))
-                .filter(Boolean);
-
-              return (
-                <motion.div
-                  key={album.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Link to={`/album/${album.id}`}>
-                    <div className="group p-4 rounded-lg bg-card hover:bg-card/80 transition-colors">
-                      <div
-                        className={cn(
-                          'aspect-square rounded-lg mb-4 relative overflow-hidden shadow-lg',
-                          !album.coverImage && `bg-gradient-to-br ${generateGradient(album.id)}`
-                        )}
-                      >
-                        {album.coverImage ? (
-                          <img
-                            src={album.coverImage}
-                            alt={album.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Disc className="h-12 w-12 text-white/50" />
-                          </div>
-                        )}
-                        <Button
-                          size="icon"
-                          variant="spotify"
-                          className="absolute bottom-2 right-2 rounded-full opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handlePlayAlbum(album);
-                          }}
-                        >
-                          <Play className="h-5 w-5 ml-0.5" />
-                        </Button>
-                      </div>
-                      <h3 className="font-semibold truncate">{album.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {albumTracks.length} tracks
-                        {album.releaseDate && ` • ${new Date(album.releaseDate).getFullYear()}`}
-                      </p>
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="p-4">
+                <Skeleton className="aspect-square rounded-lg mb-4" />
+                <Skeleton className="h-4 w-3/4 mb-2" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : artistAlbums.length > 0 && (
+        <section>
+          <h2 className="text-2xl font-bold mb-4">Albums</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {artistAlbums.map((album, index) => (
+              <AlbumCard 
+                key={album.id} 
+                album={album} 
+                index={index} 
+              />
+            ))}
           </div>
         </section>
       )}
@@ -284,7 +279,7 @@ export default function ArtistPage() {
       {/* All Tracks Section */}
       <section>
         <h2 className="text-2xl font-bold mb-4">All Tracks</h2>
-        {isLoading ? (
+        {mediaLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full" />
@@ -313,8 +308,9 @@ export default function ArtistPage() {
 
             {/* Tracks */}
             {artistMedia.map((track, index) => {
-              const trackAlbum = artistAlbums.find((a) => a.id === mediaAlbumMap[track.id]);
               const isLiked = isFavorite(track.id);
+              // Find album from track's albumId if available
+              const trackAlbum = artistAlbums.find((a) => a.id === track.albumId);
 
               return (
                 <motion.div
@@ -406,5 +402,72 @@ export default function ArtistPage() {
         )}
       </section>
     </div>
+  );
+}
+
+// Album card component with track count
+function AlbumCard({ album, index }) {
+  const { playTrack, setQueue } = usePlayerStore();
+
+  // Fetch album tracks
+  const { data: tracksData } = useQuery({
+    queryKey: ['album', album.id, 'media'],
+    queryFn: () => publicApi.getAlbumMedia(album.id),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const albumTracks = tracksData?.data || [];
+
+  const handlePlayAlbum = (e) => {
+    e.preventDefault();
+    if (albumTracks.length > 0) {
+      setQueue(albumTracks, 0);
+      playTrack(albumTracks[0], albumTracks);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+    >
+      <Link to={`/album/${album.id}`}>
+        <div className="group p-4 rounded-lg bg-card hover:bg-card/80 transition-colors">
+          <div
+            className={cn(
+              'aspect-square rounded-lg mb-4 relative overflow-hidden shadow-lg',
+              !album.coverImage && `bg-gradient-to-br ${generateGradient(album.id)}`
+            )}
+          >
+            {album.coverImage ? (
+              <img
+                src={album.coverImage}
+                alt={album.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Disc className="h-12 w-12 text-white/50" />
+              </div>
+            )}
+            <Button
+              size="icon"
+              variant="spotify"
+              className="absolute bottom-2 right-2 rounded-full opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg"
+              onClick={handlePlayAlbum}
+              disabled={albumTracks.length === 0}
+            >
+              <Play className="h-5 w-5 ml-0.5" />
+            </Button>
+          </div>
+          <h3 className="font-semibold truncate">{album.title}</h3>
+          <p className="text-sm text-muted-foreground">
+            {albumTracks.length} tracks
+            {album.releaseDate && ` • ${new Date(album.releaseDate).getFullYear()}`}
+          </p>
+        </div>
+      </Link>
+    </motion.div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Upload,
@@ -12,9 +12,10 @@ import {
   FileAudio,
   Plus,
   User,
+  Loader2,
 } from 'lucide-react';
-import { adminApi } from '../../services/api';
-import { useUIStore, useContentStore } from '../../store';
+import { publicApi, adminApi } from '../../services/api';
+import { useUIStore } from '../../store';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -41,14 +42,6 @@ import { cn, formatFileSize } from '../../lib/utils';
 export default function AdminUpload() {
   const queryClient = useQueryClient();
   const { addToast } = useUIStore();
-  const {
-    artists,
-    addArtist,
-    addAlbum,
-    getAlbumsByArtist,
-    assignMediaToArtist,
-    assignMediaToAlbum,
-  } = useContentStore();
   
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
@@ -64,25 +57,81 @@ export default function AdminUpload() {
   const [showNewAlbumDialog, setShowNewAlbumDialog] = useState(false);
   const [newArtistName, setNewArtistName] = useState('');
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
-  
-  // Get albums for selected artist
-  const artistAlbums = selectedArtistId ? getAlbumsByArtist(selectedArtistId) : [];
 
-  // Upload mutation
+  // Fetch artists from API
+  const { data: artistsData } = useQuery({
+    queryKey: ['artists'],
+    queryFn: () => publicApi.getArtists({ limit: 200 }),
+  });
+
+  // Fetch albums for selected artist
+  const { data: albumsData } = useQuery({
+    queryKey: ['artist-albums', selectedArtistId],
+    queryFn: () => publicApi.getArtistAlbums(selectedArtistId),
+    enabled: !!selectedArtistId,
+  });
+
+  const artists = artistsData?.data || [];
+  const artistAlbums = albumsData?.data || [];
+
+  // Create artist mutation
+  const createArtistMutation = useMutation({
+    mutationFn: (data) => adminApi.createArtist(data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries(['artists']);
+      setSelectedArtistId(response.data.id);
+      setNewArtistName('');
+      setShowNewArtistDialog(false);
+      addToast({ message: 'Artist created', type: 'success' });
+    },
+    onError: (error) => {
+      addToast({
+        message: error.response?.data?.message || 'Failed to create artist',
+        type: 'error',
+      });
+    },
+  });
+
+  // Create album mutation
+  const createAlbumMutation = useMutation({
+    mutationFn: (data) => adminApi.createAlbum(data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries(['artist-albums', selectedArtistId]);
+      setSelectedAlbumId(response.data.id);
+      setNewAlbumTitle('');
+      setShowNewAlbumDialog(false);
+      addToast({ message: 'Album created', type: 'success' });
+    },
+    onError: (error) => {
+      addToast({
+        message: error.response?.data?.message || 'Failed to create album',
+        type: 'error',
+      });
+    },
+  });
+
+  // Upload mutation - now passes artistId and albumId to the API
   const uploadMutation = useMutation({
-    mutationFn: ({ file, title, subtitle, type }) =>
-      adminApi.uploadMedia(file, title, subtitle, type, setUploadProgress),
-    onSuccess: (data) => {
+    mutationFn: ({ file, title, subtitle, type, artistId, albumId }) =>
+      adminApi.uploadMedia(file, title, subtitle, type, setUploadProgress, artistId || null, albumId || null),
+    onSuccess: async (data) => {
       queryClient.invalidateQueries(['media']);
       queryClient.invalidateQueries(['admin-media']);
+      queryClient.invalidateQueries(['artist-media', selectedArtistId]);
       
-      // Assign to artist/album if selected
+      // If album is selected, also add media to album with track number
       const mediaId = data?.data?.id;
-      if (mediaId) {
-        if (selectedAlbumId) {
-          assignMediaToAlbum(mediaId, selectedAlbumId);
-        } else if (selectedArtistId) {
-          assignMediaToArtist(mediaId, selectedArtistId);
+      if (mediaId && selectedAlbumId) {
+        try {
+          // Get current album track count to determine next track number
+          const albumMediaResponse = await publicApi.getAlbumMedia(selectedAlbumId);
+          const currentTracks = albumMediaResponse?.data || [];
+          const nextTrackNumber = currentTracks.length + 1;
+          
+          await adminApi.addMediaToAlbum(selectedAlbumId, mediaId, nextTrackNumber);
+          queryClient.invalidateQueries(['album-media', selectedAlbumId]);
+        } catch (error) {
+          console.error('Failed to add media to album:', error);
         }
       }
       
@@ -109,20 +158,15 @@ export default function AdminUpload() {
   
   const handleCreateArtist = () => {
     if (!newArtistName.trim()) return;
-    const artist = addArtist({ name: newArtistName.trim() });
-    setSelectedArtistId(artist.id);
-    setNewArtistName('');
-    setShowNewArtistDialog(false);
-    addToast({ message: 'Artist created', type: 'success' });
+    createArtistMutation.mutate({ name: newArtistName.trim() });
   };
   
   const handleCreateAlbum = () => {
     if (!newAlbumTitle.trim() || !selectedArtistId) return;
-    const album = addAlbum({ title: newAlbumTitle.trim(), artistId: selectedArtistId });
-    setSelectedAlbumId(album.id);
-    setNewAlbumTitle('');
-    setShowNewAlbumDialog(false);
-    addToast({ message: 'Album created', type: 'success' });
+    createAlbumMutation.mutate({ 
+      title: newAlbumTitle.trim(), 
+      artistId: selectedArtistId 
+    });
   };
 
   const handleFileDrop = useCallback((e) => {
@@ -165,8 +209,18 @@ export default function AdminUpload() {
       addToast({ message: 'Please select a file and enter a title', type: 'error' });
       return;
     }
-    uploadMutation.mutate({ file, title: title.trim(), subtitle: subtitle.trim(), type });
+    uploadMutation.mutate({ 
+      file, 
+      title: title.trim(), 
+      subtitle: subtitle.trim(), 
+      type,
+      artistId: selectedArtistId || null,
+      albumId: selectedAlbumId || null,
+    });
   };
+
+  const selectedArtist = artists.find((a) => a.id === selectedArtistId);
+  const selectedAlbum = artistAlbums.find((a) => a.id === selectedAlbumId);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -401,11 +455,11 @@ export default function AdminUpload() {
             {selectedArtistId && (
               <p className="text-xs text-muted-foreground">
                 This media will be assigned to{' '}
-                <strong>{artists.find((a) => a.id === selectedArtistId)?.name}</strong>
+                <strong>{selectedArtist?.name}</strong>
                 {selectedAlbumId && (
                   <>
                     {' '}in album{' '}
-                    <strong>{artistAlbums.find((a) => a.id === selectedAlbumId)?.title}</strong>
+                    <strong>{selectedAlbum?.title}</strong>
                   </>
                 )}
               </p>
@@ -509,7 +563,11 @@ export default function AdminUpload() {
             <Button variant="ghost" onClick={() => setShowNewArtistDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateArtist} disabled={!newArtistName.trim()}>
+            <Button 
+              onClick={handleCreateArtist} 
+              disabled={!newArtistName.trim() || createArtistMutation.isLoading}
+            >
+              {createArtistMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Artist
             </Button>
           </DialogFooter>
@@ -522,7 +580,7 @@ export default function AdminUpload() {
           <DialogHeader>
             <DialogTitle>Create New Album</DialogTitle>
             <DialogDescription>
-              Add a new album for {artists.find((a) => a.id === selectedArtistId)?.name}
+              Add a new album for {selectedArtist?.name}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -538,7 +596,11 @@ export default function AdminUpload() {
             <Button variant="ghost" onClick={() => setShowNewAlbumDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateAlbum} disabled={!newAlbumTitle.trim()}>
+            <Button 
+              onClick={handleCreateAlbum} 
+              disabled={!newAlbumTitle.trim() || createAlbumMutation.isLoading}
+            >
+              {createAlbumMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Album
             </Button>
           </DialogFooter>

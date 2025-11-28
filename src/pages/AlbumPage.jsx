@@ -13,8 +13,9 @@ import {
   Disc,
   User,
   Share2,
+  AlertCircle,
 } from 'lucide-react';
-import { useContentStore, usePlayerStore, useLibraryStore } from '../store';
+import { usePlayerStore, useLibraryStore } from '../store';
 import { publicApi } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Skeleton } from '../components/ui/skeleton';
@@ -30,30 +31,29 @@ export default function AlbumPage() {
   const { albumId } = useParams();
   const { playTrack, setQueue } = usePlayerStore();
   const { toggleFavorite, isFavorite } = useLibraryStore();
+
+  // Fetch album details (includes artist info from backend)
   const {
-    getAlbum,
-    getArtist,
-    getMediaByAlbum,
-  } = useContentStore();
-
-  const album = getAlbum(albumId);
-  const artist = album ? getArtist(album.artistId) : null;
-  const trackIds = album ? getMediaByAlbum(album.id) : [];
-
-  // Fetch all media
-  const { data: mediaData, isLoading } = useQuery({
-    queryKey: ['media'],
-    queryFn: () => publicApi.getMedia({ limit: 500 }),
+    data: albumData,
+    isLoading: albumLoading,
+    isError: albumError,
+    error: albumErrorMsg,
+  } = useQuery({
+    queryKey: ['album', albumId],
+    queryFn: () => publicApi.getAlbumById(albumId),
+    enabled: !!albumId,
   });
 
-  const allMedia = mediaData?.data || [];
+  // Fetch album tracks (ordered by trackNumber)
+  const { data: tracksData, isLoading: tracksLoading } = useQuery({
+    queryKey: ['album', albumId, 'media'],
+    queryFn: () => publicApi.getAlbumMedia(albumId),
+    enabled: !!albumId,
+  });
 
-  // Get album tracks with full info (in order)
-  const albumTracks = useMemo(() => {
-    return trackIds
-      .map((id) => allMedia.find((m) => m.id === id))
-      .filter(Boolean);
-  }, [allMedia, trackIds]);
+  const album = albumData?.data;
+  const artist = album?.artist; // Backend includes artist info in album response
+  const albumTracks = useMemo(() => tracksData?.data || [], [tracksData?.data]);
 
   // Calculate total duration
   const totalDuration = useMemo(() => {
@@ -87,12 +87,48 @@ export default function AlbumPage() {
     playTrack(track, albumTracks);
   };
 
-  if (!album) {
+  // Loading state
+  if (albumLoading) {
+    return (
+      <div className="space-y-8 pb-32">
+        <div className="flex flex-col md:flex-row items-center md:items-end gap-6 py-8">
+          <Skeleton className="w-48 h-48 md:w-56 md:h-56 rounded-lg" />
+          <div className="flex-1 text-center md:text-left space-y-4">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-12 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+        </div>
+        <div className="flex gap-4">
+          <Skeleton className="h-12 w-28 rounded-full" />
+          <Skeleton className="h-12 w-28 rounded-full" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (albumError || !album) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center">
-        <Disc className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Album not found</h2>
-        <p className="text-muted-foreground mb-4">This album doesn't exist or has been removed</p>
+        {albumError ? (
+          <>
+            <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Failed to load album</h2>
+            <p className="text-muted-foreground mb-4">{albumErrorMsg?.message || 'An error occurred'}</p>
+          </>
+        ) : (
+          <>
+            <Disc className="h-16 w-16 text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Album not found</h2>
+            <p className="text-muted-foreground mb-4">This album doesn't exist or has been removed</p>
+          </>
+        )}
         <Button asChild>
           <Link to="/">Go Home</Link>
         </Button>
@@ -237,7 +273,7 @@ export default function AlbumPage() {
 
       {/* Track List */}
       <section>
-        {isLoading ? (
+        {tracksLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full" />
@@ -266,6 +302,8 @@ export default function AlbumPage() {
             {/* Tracks */}
             {albumTracks.map((track, index) => {
               const isLiked = isFavorite(track.id);
+              // Use trackNumber from API if available, otherwise use index
+              const displayNumber = track.trackNumber || index + 1;
 
               return (
                 <motion.div
@@ -277,7 +315,7 @@ export default function AlbumPage() {
                 >
                   {/* Track number */}
                   <div className="w-8 text-center text-muted-foreground">
-                    <span className="group-hover:hidden">{index + 1}</span>
+                    <span className="group-hover:hidden">{displayNumber}</span>
                     <Button
                       variant="ghost"
                       size="iconSm"

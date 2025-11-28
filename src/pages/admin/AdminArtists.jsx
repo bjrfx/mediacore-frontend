@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus,
   Search,
@@ -9,15 +10,18 @@ import {
   Disc,
   Music,
   ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useContentStore, useUIStore } from '../../store';
+import { publicApi, adminApi } from '../../services/api';
+import { useUIStore, useContentStore } from '../../store';
 import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
+import { Skeleton } from '../../components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -36,16 +40,9 @@ import {
 import { cn, generateGradient } from '../../lib/utils';
 
 export default function AdminArtists() {
+  const queryClient = useQueryClient();
   const { addToast } = useUIStore();
-  const {
-    artists,
-    albums,
-    addArtist,
-    updateArtist,
-    deleteArtist,
-    getAlbumsByArtist,
-    getMediaByArtist,
-  } = useContentStore();
+  const { setArtistsCache, setAlbumsCache } = useContentStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -58,6 +55,83 @@ export default function AdminArtists() {
     genre: '',
     image: '',
     website: '',
+  });
+
+  // Fetch artists from API
+  const { data: artistsData, isLoading: artistsLoading } = useQuery({
+    queryKey: ['artists'],
+    queryFn: () => publicApi.getArtists({ limit: 200 }),
+    onSuccess: (data) => {
+      if (data?.data) {
+        setArtistsCache(data.data);
+      }
+    },
+  });
+
+  // Fetch albums for stats
+  const { data: albumsData } = useQuery({
+    queryKey: ['albums'],
+    queryFn: () => publicApi.getAlbums({ limit: 500 }),
+    onSuccess: (data) => {
+      if (data?.data) {
+        setAlbumsCache(data.data);
+      }
+    },
+  });
+
+  const artists = artistsData?.data || [];
+  const albums = albumsData?.data || [];
+
+  // Create artist mutation
+  const createMutation = useMutation({
+    mutationFn: (data) => adminApi.createArtist(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['artists']);
+      setShowAddDialog(false);
+      setFormData({ name: '', bio: '', genre: '', image: '', website: '' });
+      addToast({ message: 'Artist created successfully', type: 'success' });
+    },
+    onError: (error) => {
+      addToast({
+        message: error.response?.data?.message || 'Failed to create artist',
+        type: 'error',
+      });
+    },
+  });
+
+  // Update artist mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => adminApi.updateArtist(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['artists']);
+      setShowEditDialog(false);
+      setSelectedArtist(null);
+      addToast({ message: 'Artist updated successfully', type: 'success' });
+    },
+    onError: (error) => {
+      addToast({
+        message: error.response?.data?.message || 'Failed to update artist',
+        type: 'error',
+      });
+    },
+  });
+
+  // Delete artist mutation
+  const deleteMutation = useMutation({
+    mutationFn: ({ id, cascade }) => adminApi.deleteArtist(id, cascade),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['artists']);
+      queryClient.invalidateQueries(['albums']);
+      setShowDeleteDialog(false);
+      setSelectedArtist(null);
+      addToast({ message: 'Artist deleted successfully', type: 'success' });
+    },
+    onError: (error) => {
+      addToast({
+        message: error.response?.data?.message || 'Failed to delete artist',
+        type: 'error',
+      });
+    },
   });
 
   const filteredArtists = searchQuery
@@ -95,9 +169,7 @@ export default function AdminArtists() {
       addToast({ message: 'Artist name is required', type: 'error' });
       return;
     }
-    addArtist(formData);
-    setShowAddDialog(false);
-    addToast({ message: 'Artist created successfully', type: 'success' });
+    createMutation.mutate(formData);
   };
 
   const handleSaveEdit = () => {
@@ -105,25 +177,18 @@ export default function AdminArtists() {
       addToast({ message: 'Artist name is required', type: 'error' });
       return;
     }
-    updateArtist(selectedArtist.id, formData);
-    setShowEditDialog(false);
-    setSelectedArtist(null);
-    addToast({ message: 'Artist updated successfully', type: 'success' });
+    updateMutation.mutate({ id: selectedArtist.id, data: formData });
   };
 
   const confirmDelete = () => {
-    deleteArtist(selectedArtist.id);
-    setShowDeleteDialog(false);
-    setSelectedArtist(null);
-    addToast({ message: 'Artist deleted successfully', type: 'success' });
+    deleteMutation.mutate({ id: selectedArtist.id, cascade: true });
   };
 
   const getArtistStats = (artistId) => {
-    const artistAlbums = getAlbumsByArtist(artistId);
-    const artistMedia = getMediaByArtist(artistId);
+    const artistAlbums = albums.filter((album) => album.artistId === artistId);
     return {
       albumCount: artistAlbums.length,
-      trackCount: artistMedia.length,
+      trackCount: artistAlbums.reduce((acc, album) => acc + (album.trackCount || 0), 0),
     };
   };
 
@@ -161,8 +226,22 @@ export default function AdminArtists() {
         <span>{albums.length} albums total</span>
       </div>
 
-      {/* Artists Grid */}
-      {filteredArtists.length === 0 ? (
+      {/* Loading State */}
+      {artistsLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-0">
+                <Skeleton className="aspect-square w-full" />
+                <div className="p-4 space-y-2">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filteredArtists.length === 0 ? (
         <div className="text-center py-12">
           <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">No artists found</h3>
@@ -341,7 +420,10 @@ export default function AdminArtists() {
             <Button variant="ghost" onClick={() => setShowAddDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveNew}>Create Artist</Button>
+            <Button onClick={handleSaveNew} disabled={createMutation.isLoading}>
+              {createMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Artist
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -402,7 +484,10 @@ export default function AdminArtists() {
             <Button variant="ghost" onClick={() => setShowEditDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit}>Save Changes</Button>
+            <Button onClick={handleSaveEdit} disabled={updateMutation.isLoading}>
+              {updateMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -418,7 +503,7 @@ export default function AdminArtists() {
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              This will also delete all albums associated with this artist.
+              This will also remove all albums associated with this artist.
               The media files will not be deleted but will be unassigned.
             </p>
           </div>
@@ -426,7 +511,8 @@ export default function AdminArtists() {
             <Button variant="ghost" onClick={() => setShowDeleteDialog(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteMutation.isLoading}>
+              {deleteMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Delete Artist
             </Button>
           </DialogFooter>
