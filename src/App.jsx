@@ -24,6 +24,9 @@ const LikedSongs = lazy(() => import('./pages/LikedSongs'));
 const History = lazy(() => import('./pages/History'));
 const Settings = lazy(() => import('./pages/Settings'));
 const MediaPlayer = lazy(() => import('./pages/MediaPlayer'));
+const ArtistPage = lazy(() => import('./pages/ArtistPage'));
+const AlbumPage = lazy(() => import('./pages/AlbumPage'));
+const ArtistsPage = lazy(() => import('./pages/ArtistsPage'));
 
 // Admin pages
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
@@ -34,6 +37,8 @@ const AdminApiKeys = lazy(() => import('./pages/admin/AdminApiKeys'));
 const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
+const AdminArtists = lazy(() => import('./pages/admin/AdminArtists'));
+const AdminArtistDetail = lazy(() => import('./pages/admin/AdminArtistDetail'));
 
 // Create Query Client
 const queryClient = new QueryClient({
@@ -87,6 +92,9 @@ function AppRoutes() {
             <Route index element={<Home />} />
             <Route path="search" element={<Search />} />
             <Route path="library" element={<Library />} />
+            <Route path="artists" element={<ArtistsPage />} />
+            <Route path="artist/:artistId" element={<ArtistPage />} />
+            <Route path="album/:albumId" element={<AlbumPage />} />
             <Route path="playlist/:id" element={<PlaylistDetail />} />
             <Route path="liked" element={<LikedSongs />} />
             <Route path="history" element={<History />} />
@@ -106,6 +114,8 @@ function AppRoutes() {
             <Route index element={<AdminOverview />} />
             <Route path="media" element={<AdminMedia />} />
             <Route path="upload" element={<AdminUpload />} />
+            <Route path="artists" element={<AdminArtists />} />
+            <Route path="artists/:artistId" element={<AdminArtistDetail />} />
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="users" element={<AdminUsers />} />

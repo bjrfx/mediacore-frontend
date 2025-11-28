@@ -70,14 +70,11 @@ export default function AdminMedia() {
   const [mediaToDelete, setMediaToDelete] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', subtitle: '' });
 
-  // Fetch media
+  // Fetch media - always fetch all, then filter client-side
+  // Backend may have issues with type filter parameter
   const { data, isLoading, error } = useQuery({
-    queryKey: ['media', filter],
-    queryFn: () =>
-      publicApi.getMedia({
-        type: filter === 'all' ? undefined : filter,
-        limit: 200,
-      }),
+    queryKey: ['admin-media'],
+    queryFn: () => publicApi.getMedia({ limit: 500 }),
   });
 
   // Update mutation
@@ -109,13 +106,20 @@ export default function AdminMedia() {
   });
 
   const allMedia = data?.data || [];
+  
+  // Apply type filter client-side
+  const typeFilteredMedia = filter === 'all' 
+    ? allMedia 
+    : allMedia.filter(item => item.type === filter);
+  
+  // Then apply search filter
   const filteredMedia = searchQuery
-    ? allMedia.filter(
+    ? typeFilteredMedia.filter(
         (item) =>
           item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           item.subtitle?.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : allMedia;
+    : typeFilteredMedia;
 
   const handleEdit = (media) => {
     setEditingMedia(media);
@@ -196,11 +200,11 @@ export default function AdminMedia() {
 
       {/* Stats */}
       <div className="flex gap-4 text-sm text-muted-foreground">
-        <span>{filteredMedia.length} items</span>
+        <span>{filteredMedia.length} items shown</span>
         <span>•</span>
-        <span>{filteredMedia.filter((m) => m.type === 'video').length} videos</span>
+        <span>{allMedia.filter((m) => m.type === 'video').length} videos total</span>
         <span>•</span>
-        <span>{filteredMedia.filter((m) => m.type === 'audio').length} audio</span>
+        <span>{allMedia.filter((m) => m.type === 'audio').length} audio total</span>
       </div>
 
       {/* Content */}

@@ -10,9 +10,11 @@ import {
   AlertCircle,
   FileVideo,
   FileAudio,
+  Plus,
+  User,
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
-import { useUIStore } from '../../store';
+import { useUIStore, useContentStore } from '../../store';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -26,11 +28,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog';
 import { cn, formatFileSize } from '../../lib/utils';
 
 export default function AdminUpload() {
   const queryClient = useQueryClient();
   const { addToast } = useUIStore();
+  const {
+    artists,
+    addArtist,
+    addAlbum,
+    getAlbumsByArtist,
+    assignMediaToArtist,
+    assignMediaToAlbum,
+  } = useContentStore();
   
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
@@ -38,13 +56,36 @@ export default function AdminUpload() {
   const [type, setType] = useState('video');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Artist/Album selection
+  const [selectedArtistId, setSelectedArtistId] = useState('');
+  const [selectedAlbumId, setSelectedAlbumId] = useState('');
+  const [showNewArtistDialog, setShowNewArtistDialog] = useState(false);
+  const [showNewAlbumDialog, setShowNewAlbumDialog] = useState(false);
+  const [newArtistName, setNewArtistName] = useState('');
+  const [newAlbumTitle, setNewAlbumTitle] = useState('');
+  
+  // Get albums for selected artist
+  const artistAlbums = selectedArtistId ? getAlbumsByArtist(selectedArtistId) : [];
 
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: ({ file, title, subtitle, type }) =>
       adminApi.uploadMedia(file, title, subtitle, type, setUploadProgress),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries(['media']);
+      queryClient.invalidateQueries(['admin-media']);
+      
+      // Assign to artist/album if selected
+      const mediaId = data?.data?.id;
+      if (mediaId) {
+        if (selectedAlbumId) {
+          assignMediaToAlbum(mediaId, selectedAlbumId);
+        } else if (selectedArtistId) {
+          assignMediaToArtist(mediaId, selectedArtistId);
+        }
+      }
+      
       resetForm();
       addToast({ message: 'Media uploaded successfully!', type: 'success' });
     },
@@ -62,6 +103,26 @@ export default function AdminUpload() {
     setSubtitle('');
     setType('video');
     setUploadProgress(0);
+    setSelectedArtistId('');
+    setSelectedAlbumId('');
+  };
+  
+  const handleCreateArtist = () => {
+    if (!newArtistName.trim()) return;
+    const artist = addArtist({ name: newArtistName.trim() });
+    setSelectedArtistId(artist.id);
+    setNewArtistName('');
+    setShowNewArtistDialog(false);
+    addToast({ message: 'Artist created', type: 'success' });
+  };
+  
+  const handleCreateAlbum = () => {
+    if (!newAlbumTitle.trim() || !selectedArtistId) return;
+    const album = addAlbum({ title: newAlbumTitle.trim(), artistId: selectedArtistId });
+    setSelectedAlbumId(album.id);
+    setNewAlbumTitle('');
+    setShowNewAlbumDialog(false);
+    addToast({ message: 'Album created', type: 'success' });
   };
 
   const handleFileDrop = useCallback((e) => {
@@ -269,6 +330,89 @@ export default function AdminUpload() {
           </CardContent>
         </Card>
 
+        {/* Artist & Album Assignment */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Artist & Album (Optional)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Artist</Label>
+              <div className="flex gap-2">
+                <Select value={selectedArtistId || "none"} onValueChange={(value) => {
+                  setSelectedArtistId(value === "none" ? "" : value);
+                  setSelectedAlbumId(''); // Reset album when artist changes
+                }}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select an artist" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No artist</SelectItem>
+                    {artists.map((artist) => (
+                      <SelectItem key={artist.id} value={artist.id}>
+                        {artist.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowNewArtistDialog(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {selectedArtistId && (
+              <div className="space-y-2">
+                <Label>Album</Label>
+                <div className="flex gap-2">
+                  <Select value={selectedAlbumId || "none"} onValueChange={(value) => setSelectedAlbumId(value === "none" ? "" : value)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select an album" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No album (singles)</SelectItem>
+                      {artistAlbums.map((album) => (
+                        <SelectItem key={album.id} value={album.id}>
+                          {album.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowNewAlbumDialog(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {selectedArtistId && (
+              <p className="text-xs text-muted-foreground">
+                This media will be assigned to{' '}
+                <strong>{artists.find((a) => a.id === selectedArtistId)?.name}</strong>
+                {selectedAlbumId && (
+                  <>
+                    {' '}in album{' '}
+                    <strong>{artistAlbums.find((a) => a.id === selectedAlbumId)?.title}</strong>
+                  </>
+                )}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Upload progress */}
         {uploadMutation.isPending && (
           <Card>
@@ -342,6 +486,64 @@ export default function AdminUpload() {
           )}
         </AnimatePresence>
       </form>
+
+      {/* New Artist Dialog */}
+      <Dialog open={showNewArtistDialog} onOpenChange={setShowNewArtistDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Create New Artist</DialogTitle>
+            <DialogDescription>
+              Add a new artist to organize your content
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Artist Name</Label>
+            <Input
+              value={newArtistName}
+              onChange={(e) => setNewArtistName(e.target.value)}
+              placeholder="e.g., Eckhart Tolle"
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowNewArtistDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateArtist} disabled={!newArtistName.trim()}>
+              Create Artist
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Album Dialog */}
+      <Dialog open={showNewAlbumDialog} onOpenChange={setShowNewAlbumDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Create New Album</DialogTitle>
+            <DialogDescription>
+              Add a new album for {artists.find((a) => a.id === selectedArtistId)?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Album Title</Label>
+            <Input
+              value={newAlbumTitle}
+              onChange={(e) => setNewAlbumTitle(e.target.value)}
+              placeholder="e.g., The Power of Now"
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowNewAlbumDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateAlbum} disabled={!newAlbumTitle.trim()}>
+              Create Album
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

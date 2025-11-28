@@ -14,6 +14,7 @@ import {
   Music2,
   X,
   LayoutDashboard,
+  Users,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUIStore, useAuthStore, useLibraryStore } from '../../store';
@@ -25,6 +26,7 @@ const mainNavItems = [
   { icon: Home, label: 'Home', path: '/' },
   { icon: Search, label: 'Search', path: '/search' },
   { icon: Library, label: 'Your Library', path: '/library' },
+  { icon: Users, label: 'Artists', path: '/artists' },
 ];
 
 const libraryItems = [
