@@ -18,6 +18,15 @@ const usePlayerStore = create(
       isMuted: false,
       isShuffled: false,
       repeatMode: 'off', // 'off', 'all', 'one'
+      playbackSpeed: 1,
+
+      // Video-specific state
+      isVideoMode: true, // true = show video, false = audio only mode
+      isFullscreen: false,
+      showControls: true,
+      buffered: 0,
+      quality: 'auto',
+      isPiP: false,
 
       // UI state
       isExpanded: false,
@@ -29,6 +38,10 @@ const usePlayerStore = create(
           currentTrack: track,
           isMiniPlayerVisible: !!track,
           isLoading: true,
+          currentTime: 0,
+          duration: 0,
+          // Auto set video mode based on track type
+          isVideoMode: track?.type === 'video',
         });
         // Add to history
         if (track) {
@@ -122,6 +135,7 @@ const usePlayerStore = create(
       setDuration: (duration) => set({ duration }),
       setCurrentTime: (currentTime) => set({ currentTime }),
       setIsLoading: (isLoading) => set({ isLoading }),
+      setBuffered: (buffered) => set({ buffered }),
 
       setVolume: (volume) => set({ volume, isMuted: volume === 0 }),
       toggleMute: () =>
@@ -138,6 +152,16 @@ const usePlayerStore = create(
           const nextIndex = (currentIndex + 1) % modes.length;
           return { repeatMode: modes[nextIndex] };
         }),
+
+      // Video-specific actions
+      setVideoMode: (isVideoMode) => set({ isVideoMode }),
+      toggleVideoMode: () => set((state) => ({ isVideoMode: !state.isVideoMode })),
+      setFullscreen: (isFullscreen) => set({ isFullscreen }),
+      toggleFullscreen: () => set((state) => ({ isFullscreen: !state.isFullscreen })),
+      setShowControls: (showControls) => set({ showControls }),
+      setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
+      setQuality: (quality) => set({ quality }),
+      setPiP: (isPiP) => set({ isPiP }),
 
       setExpanded: (expanded) => set({ isExpanded: expanded }),
       toggleExpanded: () => set((state) => ({ isExpanded: !state.isExpanded })),
