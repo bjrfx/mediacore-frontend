@@ -163,11 +163,9 @@ export const publicApi = {
 
   // Get all media/tracks in an album (ordered by track number)
   getAlbumMedia: async (albumId) => {
-    console.log('[API] Fetching album media for albumId:', albumId);
     const response = await api.get(`/api/albums/${albumId}/media`, {
       headers: { 'x-api-key': API_KEY },
     });
-    console.log('[API] Album media response:', response.data);
     return response.data;
   },
 };

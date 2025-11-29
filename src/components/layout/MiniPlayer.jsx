@@ -52,6 +52,7 @@ function MiniPlayer() {
   const controlsTimeoutRef = useRef(null);
   const [seeking, setSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
+  const lastTrackIdRef = useRef(null);
 
   const {
     currentTrack,
@@ -70,6 +71,7 @@ function MiniPlayer() {
     showControls,
     playbackSpeed,
     buffered,
+    seekToTime,
     togglePlay,
     playNext,
     playPrevious,
@@ -87,10 +89,10 @@ function MiniPlayer() {
     setPlaybackSpeed,
     setBuffered,
     closeMiniPlayer,
+    clearSeekToTime,
   } = usePlayerStore();
 
   const { toggleFavorite, isFavorite } = useLibraryStore();
-
   const isVideo = currentTrack?.type === 'video';
 
   // Auto-hide controls for video
@@ -110,6 +112,24 @@ function MiniPlayer() {
       controlsTimeoutRef.current = setTimeout(hideControls, 3000);
     }
   }, [hideControls, isVideoMode, isExpanded]);
+
+  // Track when track changes for resume tracking
+  useEffect(() => {
+    if (currentTrack) {
+      lastTrackIdRef.current = currentTrack.id;
+    }
+  }, [currentTrack?.id]);
+
+  // Handle seekToTime from store (for resuming playback)
+  useEffect(() => {
+    if (seekToTime !== null && seekToTime > 0 && playerRef.current) {
+      // Small delay to ensure player is ready
+      setTimeout(() => {
+        playerRef.current?.seekTo(seekToTime, 'seconds');
+        clearSeekToTime();
+      }, 200);
+    }
+  }, [seekToTime, clearSeekToTime]);
 
   // Handle fullscreen
   useEffect(() => {
@@ -303,6 +323,19 @@ function MiniPlayer() {
     [setDuration]
   );
 
+  // Handle player ready - also seek if there's a pending seekToTime
+  const handleReady = useCallback(() => {
+    setIsLoading(false);
+    // If there's a pending seek time, seek to it after player is ready
+    const storeState = usePlayerStore.getState();
+    if (storeState.seekToTime !== null && storeState.seekToTime > 0) {
+      setTimeout(() => {
+        playerRef.current?.seekTo(storeState.seekToTime, 'seconds');
+        storeState.clearSeekToTime();
+      }, 100);
+    }
+  }, [setIsLoading]);
+
   const handleSeekStart = () => {
     setSeeking(true);
   };
@@ -379,7 +412,7 @@ function MiniPlayer() {
             onProgress={handleProgress}
             onDuration={handleDuration}
             onEnded={handleEnded}
-            onReady={() => setIsLoading(false)}
+            onReady={handleReady}
             onBuffer={() => setIsLoading(true)}
             onBufferEnd={() => setIsLoading(false)}
             width={isVideoMode && isVideo ? '100%' : '0'}
@@ -885,7 +918,7 @@ function MiniPlayer() {
           onProgress={handleProgress}
           onDuration={handleDuration}
           onEnded={handleEnded}
-          onReady={() => setIsLoading(false)}
+          onReady={handleReady}
           onBuffer={() => setIsLoading(true)}
           onBufferEnd={() => setIsLoading(false)}
           width="0"

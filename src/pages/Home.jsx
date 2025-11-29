@@ -1,16 +1,20 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Play, Clock, TrendingUp } from 'lucide-react';
+import { Play, Clock, TrendingUp, RotateCcw, Video, Music, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { publicApi } from '../services/api';
 import { usePlayerStore, useAuthStore } from '../store';
 import { MediaGrid } from '../components/media';
 import { Button } from '../components/ui/button';
-import { cn, generateGradient } from '../lib/utils';
+import { cn, generateGradient, formatDuration } from '../lib/utils';
 
 export default function Home() {
-  const { user, isAuthenticated } = useAuthStore();
-  const { playTrack, history } = usePlayerStore();
+  const { user, isAuthenticated, isAdminUser } = useAuthStore();
+  const { playTrack, history, getResumeItems, playbackProgress } = usePlayerStore();
+
+  // Get items that can be resumed
+  const resumeItems = useMemo(() => getResumeItems(), [getResumeItems, playbackProgress, history]);
 
   // Fetch all media
   const { data: mediaData, isLoading: mediaLoading } = useQuery({
@@ -50,6 +54,11 @@ export default function Home() {
     if (allMedia.length > 0) {
       playTrack(allMedia[0], allMedia);
     }
+  };
+
+  // Handle resume play
+  const handleResumePlay = (item) => {
+    playTrack(item, null, true); // true = resume from saved position
   };
 
   return (
@@ -158,6 +167,81 @@ export default function Home() {
 
       {/* Content sections */}
       <div className="px-6 space-y-10 pb-8">
+        {/* Continue Watching/Listening section */}
+        {resumeItems.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              <h2 className="text-2xl font-bold">Continue Watching</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {resumeItems.map((item, index) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => handleResumePlay(item)}
+                  className="group relative cursor-pointer"
+                >
+                  {/* Thumbnail */}
+                  <div
+                    className={cn(
+                      'aspect-video rounded-lg overflow-hidden mb-2 relative',
+                      !item.thumbnail && `bg-gradient-to-br ${generateGradient(item.id)}`
+                    )}
+                  >
+                    {item.thumbnail ? (
+                      <img
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        {item.type === 'video' ? (
+                          <Video className="w-12 h-12 text-white/50" />
+                        ) : (
+                          <Music className="w-12 h-12 text-white/50" />
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Progress bar overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+                      <div 
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${item.progress?.percentage || 0}%` }}
+                      />
+                    </div>
+
+                    {/* Play button overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="spotify" size="icon" className="h-12 w-12">
+                        <Play className="h-6 w-6 ml-0.5" />
+                      </Button>
+                    </div>
+
+                    {/* Type badge */}
+                    <span className={cn(
+                      'absolute top-2 left-2 text-xs font-medium px-2 py-0.5 rounded',
+                      item.type === 'video' ? 'bg-blue-500/80' : 'bg-green-500/80'
+                    )}>
+                      {item.type === 'video' ? 'VIDEO' : 'AUDIO'}
+                    </span>
+                  </div>
+
+                  {/* Info */}
+                  <h3 className="font-semibold text-sm truncate">{item.title}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {item.progress?.percentage}% • {formatDuration(item.progress?.duration - item.progress?.currentTime)} left
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Recently played section */}
         {recentlyPlayed.length > 0 && (
           <section>
@@ -175,7 +259,19 @@ export default function Home() {
             media={videos}
             isLoading={videosLoading}
             title="Videos"
-            emptyMessage="No videos available"
+            emptyMessage={
+              <div className="text-center py-8">
+                <Video className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground mb-1">No videos available</p>
+                <p className="text-sm text-muted-foreground/70">
+                  {isAdminUser ? (
+                    <>Videos will appear here once uploaded. <Link to="/admin/upload" className="text-primary hover:underline">Upload now</Link></>
+                  ) : (
+                    'Check back later for new video content'
+                  )}
+                </p>
+              </div>
+            }
           />
         </section>
 
@@ -185,7 +281,19 @@ export default function Home() {
             media={audio}
             isLoading={audioLoading}
             title="Audio"
-            emptyMessage="No audio available"
+            emptyMessage={
+              <div className="text-center py-8">
+                <Music className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground mb-1">No audio available</p>
+                <p className="text-sm text-muted-foreground/70">
+                  {isAdminUser ? (
+                    <>Audio tracks will appear here once uploaded. <Link to="/admin/upload" className="text-primary hover:underline">Upload now</Link></>
+                  ) : (
+                    'Check back later for new audio content'
+                  )}
+                </p>
+              </div>
+            }
           />
         </section>
 
@@ -198,7 +306,27 @@ export default function Home() {
           <MediaGrid
             media={allMedia}
             isLoading={mediaLoading}
-            emptyMessage="No media available yet"
+            emptyMessage={
+              <div className="text-center py-12">
+                <Upload className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No media available yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  {isAdminUser ? (
+                    'Start by uploading your first video or audio file'
+                  ) : (
+                    'Content is being prepared. Check back soon!'
+                  )}
+                </p>
+                {isAdminUser && (
+                  <Button asChild>
+                    <Link to="/admin/upload">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Media
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            }
           />
         </section>
       </div>

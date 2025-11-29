@@ -23,8 +23,15 @@ export default function MediaGrid({ media = [], isLoading = false, title, showAl
 
   if (media.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">{emptyMessage}</p>
+      <div className="space-y-4">
+        {title && <h2 className="text-2xl font-bold">{title}</h2>}
+        {typeof emptyMessage === 'string' ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">{emptyMessage}</p>
+          </div>
+        ) : (
+          emptyMessage
+        )}
       </div>
     );
   }

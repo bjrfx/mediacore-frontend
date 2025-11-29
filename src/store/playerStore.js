@@ -32,13 +32,29 @@ const usePlayerStore = create(
       isExpanded: false,
       isMiniPlayerVisible: false,
 
+      // Resume playback - flag to indicate player should seek
+      seekToTime: null, // When set, player should seek to this time
+
+      // Resume playback progress tracking
+      playbackProgress: {}, // { [mediaId]: { currentTime, duration, percentage, updatedAt } }
+
       // Actions
       setCurrentTrack: (track) => {
+        // Save progress of current track before switching
+        const { currentTrack, currentTime, duration } = get();
+        if (currentTrack && currentTime > 5 && duration > 0) {
+          get().saveProgress(currentTrack.id, currentTime, duration);
+        }
+
+        // Get saved progress for new track
+        const savedProgress = track ? get().playbackProgress[track.id] : null;
+        const resumeTime = savedProgress?.currentTime || 0;
+
         set({
           currentTrack: track,
           isMiniPlayerVisible: !!track,
           isLoading: true,
-          currentTime: 0,
+          currentTime: resumeTime,
           duration: 0,
           // Auto set video mode based on track type
           isVideoMode: track?.type === 'video',
@@ -58,7 +74,17 @@ const usePlayerStore = create(
         });
       },
 
-      playTrack: (track, queue = null) => {
+      playTrack: (track, queue = null, resumeFromSaved = true) => {
+        // Save progress of current track before switching
+        const { currentTrack, currentTime, duration } = get();
+        if (currentTrack && currentTime > 5 && duration > 0) {
+          get().saveProgress(currentTrack.id, currentTime, duration);
+        }
+
+        // Get saved progress for new track
+        const savedProgress = resumeFromSaved ? get().playbackProgress[track.id] : null;
+        const resumeTime = savedProgress?.currentTime || 0;
+
         if (queue) {
           const index = queue.findIndex((t) => t.id === track.id);
           set({
@@ -67,12 +93,16 @@ const usePlayerStore = create(
             currentTrack: track,
             isPlaying: true,
             isMiniPlayerVisible: true,
+            currentTime: resumeTime,
+            seekToTime: resumeTime > 0 ? resumeTime : null, // Signal player to seek
           });
         } else {
           set({
             currentTrack: track,
             isPlaying: true,
             isMiniPlayerVisible: true,
+            currentTime: resumeTime,
+            seekToTime: resumeTime > 0 ? resumeTime : null, // Signal player to seek
           });
         }
         if (track) {
@@ -80,12 +110,83 @@ const usePlayerStore = create(
         }
       },
 
+      // Clear seek request after player has seeked
+      clearSeekToTime: () => set({ seekToTime: null }),
+
+      // Save playback progress
+      saveProgress: (mediaId, currentTime, duration) => {
+        if (!mediaId || duration <= 0) return;
+        
+        const percentage = Math.round((currentTime / duration) * 100);
+        
+        // Only save if more than 5% and less than 95% complete
+        if (percentage >= 5 && percentage < 95) {
+          set((state) => ({
+            playbackProgress: {
+              ...state.playbackProgress,
+              [mediaId]: {
+                currentTime,
+                duration,
+                percentage,
+                updatedAt: new Date().toISOString(),
+              },
+            },
+          }));
+        } else if (percentage >= 95) {
+          // Remove from progress if completed
+          set((state) => {
+            const { [mediaId]: _, ...rest } = state.playbackProgress;
+            return { playbackProgress: rest };
+          });
+        }
+      },
+
+      // Get items that can be resumed
+      getResumeItems: () => {
+        const { playbackProgress, history } = get();
+        const progressIds = Object.keys(playbackProgress);
+        
+        // Match progress with history items to get full media info
+        return history
+          .filter((item) => progressIds.includes(item.id))
+          .map((item) => ({
+            ...item,
+            progress: playbackProgress[item.id],
+          }))
+          .sort((a, b) => new Date(b.progress.updatedAt) - new Date(a.progress.updatedAt))
+          .slice(0, 10);
+      },
+
+      // Clear progress for a specific item
+      clearProgress: (mediaId) => {
+        set((state) => {
+          const { [mediaId]: _, ...rest } = state.playbackProgress;
+          return { playbackProgress: rest };
+        });
+      },
+
+      // Clear all progress
+      clearAllProgress: () => set({ playbackProgress: {} }),
+
       togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
       play: () => set({ isPlaying: true }),
-      pause: () => set({ isPlaying: false }),
+      pause: () => {
+        // Save progress when pausing
+        const { currentTrack, currentTime, duration } = get();
+        if (currentTrack && currentTime > 5 && duration > 0) {
+          get().saveProgress(currentTrack.id, currentTime, duration);
+        }
+        set({ isPlaying: false });
+      },
 
       playNext: () => {
-        const { queue, queueIndex, repeatMode, isShuffled } = get();
+        const { queue, queueIndex, repeatMode, isShuffled, currentTrack, currentTime, duration } = get();
+        
+        // Save progress of current track
+        if (currentTrack && currentTime > 5 && duration > 0) {
+          get().saveProgress(currentTrack.id, currentTime, duration);
+        }
+
         if (queue.length === 0) return;
 
         let nextIndex;
@@ -102,17 +203,19 @@ const usePlayerStore = create(
 
         const nextTrack = queue[nextIndex];
         if (nextTrack) {
+          const savedProgress = get().playbackProgress[nextTrack.id];
           set({
             queueIndex: nextIndex,
             currentTrack: nextTrack,
             isPlaying: true,
+            currentTime: savedProgress?.currentTime || 0,
           });
           get().addToHistory(nextTrack);
         }
       },
 
       playPrevious: () => {
-        const { queue, queueIndex, currentTime } = get();
+        const { queue, queueIndex, currentTime, currentTrack, duration } = get();
         if (queue.length === 0) return;
 
         // If more than 3 seconds into the track, restart it
@@ -121,19 +224,33 @@ const usePlayerStore = create(
           return;
         }
 
+        // Save progress of current track
+        if (currentTrack && currentTime > 5 && duration > 0) {
+          get().saveProgress(currentTrack.id, currentTime, duration);
+        }
+
         const prevIndex = queueIndex > 0 ? queueIndex - 1 : queue.length - 1;
         const prevTrack = queue[prevIndex];
         if (prevTrack) {
+          const savedProgress = get().playbackProgress[prevTrack.id];
           set({
             queueIndex: prevIndex,
             currentTrack: prevTrack,
             isPlaying: true,
+            currentTime: savedProgress?.currentTime || 0,
           });
         }
       },
 
       setDuration: (duration) => set({ duration }),
-      setCurrentTime: (currentTime) => set({ currentTime }),
+      setCurrentTime: (currentTime) => {
+        set({ currentTime });
+        // Periodically save progress (every 10 seconds of playback)
+        const { currentTrack, duration } = get();
+        if (currentTrack && duration > 0 && Math.floor(currentTime) % 10 === 0) {
+          get().saveProgress(currentTrack.id, currentTime, duration);
+        }
+      },
       setIsLoading: (isLoading) => set({ isLoading }),
       setBuffered: (buffered) => set({ buffered }),
 
@@ -166,14 +283,21 @@ const usePlayerStore = create(
       setExpanded: (expanded) => set({ isExpanded: expanded }),
       toggleExpanded: () => set((state) => ({ isExpanded: !state.isExpanded })),
 
-      closeMiniPlayer: () =>
+      closeMiniPlayer: () => {
+        // Save progress before closing
+        const { currentTrack, currentTime, duration } = get();
+        if (currentTrack && currentTime > 5 && duration > 0) {
+          get().saveProgress(currentTrack.id, currentTime, duration);
+        }
+        
         set({
           currentTrack: null,
           isPlaying: false,
           isMiniPlayerVisible: false,
           queue: [],
           queueIndex: 0,
-        }),
+        });
+      },
 
       // History
       history: [],
@@ -198,6 +322,7 @@ const usePlayerStore = create(
         isShuffled: state.isShuffled,
         repeatMode: state.repeatMode,
         history: state.history,
+        playbackProgress: state.playbackProgress,
       }),
     }
   )
