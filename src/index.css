@@ -200,6 +200,16 @@
   }
 }
 
+/* Radix Dialog fix - ensure proper centering */
+[data-radix-popper-content-wrapper] {
+  z-index: 50 !important;
+}
+
+/* Ensure dialog portal is centered properly */
+[role="dialog"] {
+  position: fixed !important;
+}
+
 /* React Player Customization */
 .react-player-wrapper {
   position: relative;

@@ -386,19 +386,38 @@ export default function AdminArtistDetail() {
     const currentTracks = albumTracksCache[selectedAlbum.id] || [];
     let nextTrackNumber = currentTracks.length + 1;
 
-    // Add each selected media to the album
-    for (const mediaId of selectedMediaIds) {
-      await addMediaToAlbumMutation.mutateAsync({
-        albumId: selectedAlbum.id,
-        mediaId,
-        trackNumber: nextTrackNumber++,
-      });
-    }
+    console.log('Adding tracks to album:', selectedAlbum.id, 'tracks:', selectedMediaIds);
 
-    setShowAssignMediaDialog(false);
-    setSelectedAlbum(null);
-    setSelectedMediaIds([]);
-    addToast({ message: `${selectedMediaIds.length} tracks added to album`, type: 'success' });
+    // Add each selected media to the album
+    try {
+      for (const mediaId of selectedMediaIds) {
+        console.log('Adding media:', mediaId, 'track number:', nextTrackNumber);
+        await addMediaToAlbumMutation.mutateAsync({
+          albumId: selectedAlbum.id,
+          mediaId,
+          trackNumber: nextTrackNumber++,
+        });
+      }
+
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries(['album-media', selectedAlbum.id]);
+      queryClient.invalidateQueries(['artist-albums', artistId]);
+      
+      // Clear the album tracks cache to force re-fetch
+      setAlbumTracksCache((prev) => {
+        const newCache = { ...prev };
+        delete newCache[selectedAlbum.id];
+        return newCache;
+      });
+
+      setShowAssignMediaDialog(false);
+      setSelectedAlbum(null);
+      setSelectedMediaIds([]);
+      addToast({ message: `${selectedMediaIds.length} tracks added to album`, type: 'success' });
+    } catch (error) {
+      console.error('Failed to add tracks:', error);
+      addToast({ message: error.response?.data?.message || 'Failed to add tracks', type: 'error' });
+    }
   };
 
   // Drag and drop for track reordering
@@ -930,8 +949,8 @@ export default function AdminArtistDetail() {
             <Button variant="ghost" onClick={() => setShowAssignMediaDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={confirmAssignMedia} disabled={selectedMediaIds.length === 0 || addMediaToAlbumMutation.isLoading}>
-              {addMediaToAlbumMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={confirmAssignMedia} disabled={selectedMediaIds.length === 0 || addMediaToAlbumMutation.isPending}>
+              {addMediaToAlbumMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Check className="mr-2 h-4 w-4" />
               Add to Album
             </Button>

@@ -493,8 +493,22 @@ export default function AdminArtists() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+      <Dialog open={showDeleteDialog} onOpenChange={(open) => !deleteMutation.isPending && setShowDeleteDialog(open)}>
+        <DialogContent className="relative">
+          {/* Loading Overlay */}
+          {deleteMutation.isPending && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 rounded-lg">
+              <div className="relative">
+                <div className="h-16 w-16 rounded-full border-4 border-muted animate-pulse" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-destructive" />
+                </div>
+              </div>
+              <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">
+                Deleting artist...
+              </p>
+            </div>
+          )}
           <DialogHeader>
             <DialogTitle>Delete Artist</DialogTitle>
             <DialogDescription>
@@ -508,12 +522,18 @@ export default function AdminArtists() {
             </p>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)}>
+            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} disabled={deleteMutation.isPending}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleteMutation.isLoading}>
-              {deleteMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete Artist
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Artist'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

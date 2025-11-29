@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   Users,
   Search,
   Shield,
+  ShieldCheck,
+  ShieldOff,
   Clock,
   Mail,
   MoreVertical,
   UserCheck,
   UserX,
   RefreshCw,
+  Trash2,
+  AlertTriangle,
+  Crown,
+  User,
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
+import { useUIStore } from '../../store';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
@@ -23,6 +30,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
 import {
@@ -32,13 +40,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../components/ui/alert-dialog';
 import { formatDate, cn } from '../../lib/utils';
 import { ScrollArea } from '../../components/ui/scroll-area';
 
 export default function AdminUsers() {
+  const queryClient = useQueryClient();
+  const { addToast } = useUIStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserDialog, setShowUserDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [userToChangeRole, setUserToChangeRole] = useState(null);
 
   // Fetch users
   const {
@@ -46,12 +70,72 @@ export default function AdminUsers() {
     isLoading,
     refetch,
     isRefetching,
+    error,
   } = useQuery({
     queryKey: ['admin', 'users'],
     queryFn: () => adminApi.getUsers(),
+    retry: 1,
   });
 
-  const users = usersData?.data?.users || [];
+  const users = usersData?.data?.users || usersData?.data || [];
+
+  // Update user role mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ uid, role }) => adminApi.updateUserRole(uid, role),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries(['admin', 'users']);
+      setShowRoleDialog(false);
+      setUserToChangeRole(null);
+      addToast({
+        message: `User role updated to ${variables.role}`,
+        type: 'success',
+      });
+    },
+    onError: (error) => {
+      addToast({
+        message: error.response?.data?.message || 'Failed to update user role',
+        type: 'error',
+      });
+    },
+  });
+
+  // Update user status mutation (enable/disable)
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ uid, disabled }) => adminApi.updateUserStatus(uid, disabled),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries(['admin', 'users']);
+      addToast({
+        message: `User ${variables.disabled ? 'disabled' : 'enabled'} successfully`,
+        type: 'success',
+      });
+    },
+    onError: (error) => {
+      addToast({
+        message: error.response?.data?.message || 'Failed to update user status',
+        type: 'error',
+      });
+    },
+  });
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: (uid) => adminApi.deleteUser(uid),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['admin', 'users']);
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
+      addToast({
+        message: 'User deleted successfully',
+        type: 'success',
+      });
+    },
+    onError: (error) => {
+      addToast({
+        message: error.response?.data?.message || 'Failed to delete user',
+        type: 'error',
+      });
+    },
+  });
 
   // Filter users based on search
   const filteredUsers = users.filter((user) => {
@@ -63,9 +147,42 @@ export default function AdminUsers() {
     );
   });
 
+  // Count admins
+  const adminCount = users.filter((u) => u.role === 'admin' || u.customClaims?.admin).length;
+
   const handleViewUser = (user) => {
     setSelectedUser(user);
     setShowUserDialog(true);
+  };
+
+  const handleChangeRole = (user) => {
+    setUserToChangeRole(user);
+    setShowRoleDialog(true);
+  };
+
+  const handleDeleteUser = (user) => {
+    setUserToDelete(user);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmRoleChange = (newRole) => {
+    if (userToChangeRole) {
+      updateRoleMutation.mutate({ uid: userToChangeRole.uid, role: newRole });
+    }
+  };
+
+  const confirmDelete = () => {
+    if (userToDelete) {
+      deleteUserMutation.mutate(userToDelete.uid);
+    }
+  };
+
+  const toggleUserStatus = (user) => {
+    updateStatusMutation.mutate({ uid: user.uid, disabled: !user.disabled });
+  };
+
+  const isUserAdmin = (user) => {
+    return user.role === 'admin' || user.customClaims?.admin;
   };
 
   const getInitials = (name, email) => {
@@ -95,6 +212,33 @@ export default function AdminUsers() {
     return formatDate(date);
   };
 
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">Users</h2>
+          <p className="text-muted-foreground">
+            View and manage Firebase authenticated users
+          </p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <AlertTriangle className="h-12 w-12 mx-auto text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Failed to load users</h3>
+            <p className="text-muted-foreground mb-4">
+              {error.response?.data?.message || error.message || 'An error occurred'}
+            </p>
+            <Button onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -118,13 +262,19 @@ export default function AdminUsers() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           {
             title: 'Total Users',
             value: users.length,
             icon: Users,
             color: 'text-blue-500',
+          },
+          {
+            title: 'Admins',
+            value: adminCount,
+            icon: Crown,
+            color: 'text-yellow-500',
           },
           {
             title: 'Verified',
@@ -235,15 +385,27 @@ export default function AdminUsers() {
                     </Avatar>
 
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">
-                        {user.displayName || 'Unknown'}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">
+                          {user.displayName || 'Unknown'}
+                        </p>
+                        {isUserAdmin(user) && (
+                          <Crown className="h-4 w-4 text-yellow-500" />
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground truncate">
                         {user.email}
                       </p>
                     </div>
 
                     <div className="hidden md:flex items-center gap-2">
+                      {isUserAdmin(user) ? (
+                        <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">
+                          Admin
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">User</Badge>
+                      )}
                       {user.emailVerified ? (
                         <Badge variant="success" className="text-xs">
                           Verified
@@ -275,8 +437,37 @@ export default function AdminUsers() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleViewUser(user)}>
+                          <User className="h-4 w-4 mr-2" />
                           View Details
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleChangeRole(user)}>
+                          {isUserAdmin(user) ? (
+                            <>
+                              <ShieldOff className="h-4 w-4 mr-2" />
+                              Remove Admin
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="h-4 w-4 mr-2" />
+                              Make Admin
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toggleUserStatus(user)}>
+                          {user.disabled ? (
+                            <>
+                              <UserCheck className="h-4 w-4 mr-2" />
+                              Enable User
+                            </>
+                          ) : (
+                            <>
+                              <UserX className="h-4 w-4 mr-2" />
+                              Disable User
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => navigator.clipboard.writeText(user.uid)}
                         >
@@ -286,6 +477,14 @@ export default function AdminUsers() {
                           onClick={() => navigator.clipboard.writeText(user.email)}
                         >
                           Copy Email
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => handleDeleteUser(user)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete User
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -324,10 +523,22 @@ export default function AdminUsers() {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="text-lg font-semibold">
-                    {selectedUser.displayName || 'Unknown'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-semibold">
+                      {selectedUser.displayName || 'Unknown'}
+                    </p>
+                    {isUserAdmin(selectedUser) && (
+                      <Crown className="h-5 w-5 text-yellow-500" />
+                    )}
+                  </div>
                   <div className="flex gap-2 mt-1">
+                    {isUserAdmin(selectedUser) ? (
+                      <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">
+                        Admin
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">User</Badge>
+                    )}
                     {selectedUser.emailVerified ? (
                       <Badge variant="success" className="text-xs">
                         Verified
@@ -364,6 +575,15 @@ export default function AdminUsers() {
                   </label>
                   <p className="mt-1 font-mono text-sm break-all">
                     {selectedUser.uid}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                    Role
+                  </label>
+                  <p className="mt-1">
+                    {isUserAdmin(selectedUser) ? 'Administrator' : 'Regular User'}
                   </p>
                 </div>
 
@@ -411,26 +631,83 @@ export default function AdminUsers() {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => {
-                    navigator.clipboard.writeText(selectedUser.uid);
-                  }}
+                  onClick={() => handleChangeRole(selectedUser)}
                 >
-                  Copy UID
+                  {isUserAdmin(selectedUser) ? 'Remove Admin' : 'Make Admin'}
                 </Button>
                 <Button
                   variant="outline"
                   className="flex-1"
                   onClick={() => {
-                    navigator.clipboard.writeText(selectedUser.email);
+                    toggleUserStatus(selectedUser);
+                    setShowUserDialog(false);
                   }}
                 >
-                  Copy Email
+                  {selectedUser.disabled ? 'Enable' : 'Disable'}
                 </Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Change role confirmation dialog */}
+      <AlertDialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {userToChangeRole && isUserAdmin(userToChangeRole)
+                ? 'Remove Admin Privileges'
+                : 'Grant Admin Privileges'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {userToChangeRole && isUserAdmin(userToChangeRole)
+                ? `Are you sure you want to remove admin privileges from ${userToChangeRole?.displayName || userToChangeRole?.email}? They will no longer be able to access the admin dashboard.`
+                : `Are you sure you want to make ${userToChangeRole?.displayName || userToChangeRole?.email} an admin? They will have full access to the admin dashboard and all management features.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() =>
+                confirmRoleChange(
+                  userToChangeRole && isUserAdmin(userToChangeRole) ? 'user' : 'admin'
+                )
+              }
+              disabled={updateRoleMutation.isPending}
+            >
+              {updateRoleMutation.isPending ? 'Updating...' : 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete user confirmation dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{' '}
+              <span className="font-semibold">
+                {userToDelete?.displayName || userToDelete?.email}
+              </span>
+              ? This action cannot be undone and will permanently remove the user
+              from Firebase Authentication.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteUserMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

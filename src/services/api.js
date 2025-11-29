@@ -163,9 +163,11 @@ export const publicApi = {
 
   // Get all media/tracks in an album (ordered by track number)
   getAlbumMedia: async (albumId) => {
+    console.log('[API] Fetching album media for albumId:', albumId);
     const response = await api.get(`/api/albums/${albumId}/media`, {
       headers: { 'x-api-key': API_KEY },
     });
+    console.log('[API] Album media response:', response.data);
     return response.data;
   },
 };
@@ -353,6 +355,43 @@ export const adminApi = {
     const headers = await getAuthHeaders();
     const url = keyId ? `/admin/analytics/api-keys?keyId=${keyId}` : '/admin/analytics/api-keys';
     const response = await api.get(url, { headers });
+    return response.data;
+  },
+
+  // ---- User Management ----
+
+  // Get all users
+  getUsers: async () => {
+    const headers = await getAuthHeaders();
+    const response = await api.get('/admin/users', { headers });
+    return response.data;
+  },
+
+  // Get single user by UID
+  getUserById: async (uid) => {
+    const headers = await getAuthHeaders();
+    const response = await api.get(`/admin/users/${uid}`, { headers });
+    return response.data;
+  },
+
+  // Update user role (make admin or regular user)
+  updateUserRole: async (uid, role) => {
+    const headers = await getAuthHeaders();
+    const response = await api.put(`/admin/users/${uid}/role`, { role }, { headers });
+    return response.data;
+  },
+
+  // Disable/Enable user
+  updateUserStatus: async (uid, disabled) => {
+    const headers = await getAuthHeaders();
+    const response = await api.put(`/admin/users/${uid}/status`, { disabled }, { headers });
+    return response.data;
+  },
+
+  // Delete user
+  deleteUser: async (uid) => {
+    const headers = await getAuthHeaders();
+    const response = await api.delete(`/admin/users/${uid}`, { headers });
     return response.data;
   },
 };

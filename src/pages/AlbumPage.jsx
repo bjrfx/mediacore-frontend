@@ -176,7 +176,7 @@ export default function AlbumPage() {
           {/* Album Info */}
           <div className="flex-1 text-center md:text-left">
             <p className="text-sm font-medium text-primary mb-2">
-              {album.type === 'album' ? 'Album' : album.type?.charAt(0).toUpperCase() + album.type?.slice(1)}
+              {album.type ? (album.type === 'album' ? 'Album' : album.type.charAt(0).toUpperCase() + album.type.slice(1)) : 'Album'}
             </p>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">{album.title}</h1>
             {album.description && (

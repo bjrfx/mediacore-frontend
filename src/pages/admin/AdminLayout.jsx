@@ -10,6 +10,7 @@ import {
   Film,
   ArrowLeft,
   Users,
+  Music,
 } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import { Button } from '../../components/ui/button';
@@ -18,8 +19,9 @@ import { cn } from '../../lib/utils';
 const adminNavItems = [
   { icon: LayoutDashboard, label: 'Overview', path: '/admin' },
   { icon: Film, label: 'Media', path: '/admin/media' },
-  { icon: Users, label: 'Artists', path: '/admin/artists' },
+  { icon: Music, label: 'Artists', path: '/admin/artists' },
   { icon: Upload, label: 'Upload', path: '/admin/upload' },
+  { icon: Users, label: 'Users', path: '/admin/users' },
   { icon: Key, label: 'API Keys', path: '/admin/api-keys' },
   { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
   { icon: Settings, label: 'Settings', path: '/admin/settings' },
