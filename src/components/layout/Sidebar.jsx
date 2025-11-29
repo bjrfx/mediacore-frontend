@@ -11,7 +11,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Music2,
   X,
   LayoutDashboard,
   Users,
@@ -90,14 +89,24 @@ function Sidebar() {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className={cn('flex items-center gap-3 px-4 py-6', collapsed && 'justify-center px-2')}>
-        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
-          <Music2 className="w-6 h-6 text-primary-foreground" />
-        </div>
+        <img 
+          src="/logo192.svg" 
+          alt="MediaCore" 
+          className="w-10 h-10 rounded-lg"
+        />
         {!collapsed && (
           <motion.span
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-xl font-bold"
+            className="text-xl font-bold tracking-tight"
+            style={{ 
+              fontFamily: "'Inter', sans-serif",
+              background: 'linear-gradient(135deg, #1DB954 0%, #1ed760 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              letterSpacing: '-0.02em'
+            }}
           >
             MediaCore
           </motion.span>
