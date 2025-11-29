@@ -26,9 +26,10 @@ import {
   ChevronUp,
   Rewind,
   FastForward,
+  WifiOff,
 } from 'lucide-react';
 import { cn, formatDuration, generateGradient } from '../../lib/utils';
-import { usePlayerStore, useLibraryStore } from '../../store';
+import { usePlayerStore, useLibraryStore, useDownloadStore } from '../../store';
 import { Button } from '../ui/button';
 import { Slider } from '../ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../ui/tooltip';
@@ -52,6 +53,7 @@ function MiniPlayer() {
   const controlsTimeoutRef = useRef(null);
   const [seeking, setSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
+  const [playbackError, setPlaybackError] = useState(null);
   const lastTrackIdRef = useRef(null);
 
   const {
@@ -359,6 +361,40 @@ function MiniPlayer() {
     }
   };
 
+  // Handle playback errors - fallback to server URL if offline version fails
+  const handleError = useCallback(async (error) => {
+    console.error('Playback error:', error);
+    
+    // If playing offline version and it failed, try server URL
+    if (currentTrack?.isOffline) {
+      setPlaybackError('Offline playback failed. Trying server...');
+      
+      // Get original track info from download store
+      const downloadStore = useDownloadStore.getState();
+      const downloadInfo = downloadStore.getDownloadInfo(currentTrack.id);
+      
+      if (downloadInfo?.media?.fileUrl) {
+        // Play from server instead
+        setTimeout(() => {
+          usePlayerStore.setState({
+            currentTrack: { ...downloadInfo.media, isOffline: false },
+          });
+          setPlaybackError(null);
+        }, 1000);
+      } else {
+        setPlaybackError('Unable to play. Please try downloading again.');
+      }
+    } else {
+      setPlaybackError('Unable to play media');
+      setTimeout(() => setPlaybackError(null), 3000);
+    }
+  }, [currentTrack]);
+
+  // Clear error when track changes
+  useEffect(() => {
+    setPlaybackError(null);
+  }, [currentTrack?.id]);
+
   const handleDoubleClick = () => {
     if (isExpanded && isVideoMode) {
       toggleFullscreenHandler();
@@ -413,6 +449,7 @@ function MiniPlayer() {
             onDuration={handleDuration}
             onEnded={handleEnded}
             onReady={handleReady}
+            onError={handleError}
             onBuffer={() => setIsLoading(true)}
             onBufferEnd={() => setIsLoading(false)}
             width={isVideoMode && isVideo ? '100%' : '0'}
@@ -919,6 +956,7 @@ function MiniPlayer() {
           onDuration={handleDuration}
           onEnded={handleEnded}
           onReady={handleReady}
+          onError={handleError}
           onBuffer={() => setIsLoading(true)}
           onBufferEnd={() => setIsLoading(false)}
           width="0"
@@ -927,6 +965,21 @@ function MiniPlayer() {
           style={{ position: 'absolute', visibility: 'hidden', pointerEvents: 'none' }}
         />
       </div>
+
+      {/* Playback Error Toast */}
+      <AnimatePresence>
+        {playbackError && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="absolute -top-16 left-1/2 -translate-x-1/2 px-4 py-2 bg-red-500/90 text-white rounded-lg flex items-center gap-2 text-sm"
+          >
+            <WifiOff className="w-4 h-4" />
+            {playbackError}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Progress bar at top */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-muted">
@@ -966,6 +1019,12 @@ function MiniPlayer() {
           {isVideo && (
             <div className="absolute bottom-1 right-1 bg-black/70 rounded px-1">
               <Film className="w-3 h-3 text-white" />
+            </div>
+          )}
+          {/* Offline indicator */}
+          {currentTrack.isOffline && (
+            <div className="absolute top-1 left-1 bg-green-500/90 rounded px-1 py-0.5">
+              <span className="text-[10px] font-medium text-white">OFFLINE</span>
             </div>
           )}
         </div>

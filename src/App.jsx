@@ -27,6 +27,7 @@ const MediaPlayer = lazy(() => import('./pages/MediaPlayer'));
 const ArtistPage = lazy(() => import('./pages/ArtistPage'));
 const AlbumPage = lazy(() => import('./pages/AlbumPage'));
 const ArtistsPage = lazy(() => import('./pages/ArtistsPage'));
+const Downloads = lazy(() => import('./pages/Downloads'));
 
 // Admin pages
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
@@ -97,6 +98,7 @@ function AppRoutes() {
             <Route path="album/:albumId" element={<AlbumPage />} />
             <Route path="playlist/:id" element={<PlaylistDetail />} />
             <Route path="liked" element={<LikedSongs />} />
+            <Route path="downloads" element={<Downloads />} />
             <Route path="history" element={<History />} />
             <Route path="settings" element={<Settings />} />
             <Route path="play/:id" element={<MediaPlayer />} />

@@ -74,7 +74,7 @@ const usePlayerStore = create(
         });
       },
 
-      playTrack: (track, queue = null, resumeFromSaved = true) => {
+      playTrack: async (track, queue = null, resumeFromSaved = true) => {
         // Save progress of current track before switching
         const { currentTrack, currentTime, duration } = get();
         if (currentTrack && currentTime > 5 && duration > 0) {
@@ -85,12 +85,27 @@ const usePlayerStore = create(
         const savedProgress = resumeFromSaved ? get().playbackProgress[track.id] : null;
         const resumeTime = savedProgress?.currentTime || 0;
 
+        // Check for downloaded version (imported dynamically to avoid circular dependency)
+        let trackToPlay = track;
+        try {
+          const downloadStore = (await import('./downloadStore')).default;
+          const downloadState = downloadStore.getState();
+          if (downloadState.isDownloaded(track.id)) {
+            const downloadedUrl = await downloadState.getDownloadedUrl(track.id);
+            if (downloadedUrl) {
+              trackToPlay = { ...track, fileUrl: downloadedUrl, isOffline: true };
+            }
+          }
+        } catch (error) {
+          console.error('Error checking download:', error);
+        }
+
         if (queue) {
           const index = queue.findIndex((t) => t.id === track.id);
           set({
             queue,
             queueIndex: index >= 0 ? index : 0,
-            currentTrack: track,
+            currentTrack: trackToPlay,
             isPlaying: true,
             isMiniPlayerVisible: true,
             currentTime: resumeTime,
@@ -98,7 +113,7 @@ const usePlayerStore = create(
           });
         } else {
           set({
-            currentTrack: track,
+            currentTrack: trackToPlay,
             isPlaying: true,
             isMiniPlayerVisible: true,
             currentTime: resumeTime,

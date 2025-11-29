@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, MoreHorizontal, Heart, ListPlus, Video, Music } from 'lucide-react';
+import { Play, Pause, MoreHorizontal, Heart, ListPlus, Video, Music, Download, Trash2 } from 'lucide-react';
 import { cn, generateGradient } from '../../lib/utils';
-import { usePlayerStore, useLibraryStore, useUIStore } from '../../store';
+import { usePlayerStore, useLibraryStore, useUIStore, useDownloadStore, useAuthStore } from '../../store';
 import { Button } from '../ui/button';
+import DownloadButton from '../ui/DownloadButton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,10 +17,13 @@ export default function MediaCard({ media, queue = [], index = 0, size = 'medium
   const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayerStore();
   const { isFavorite, toggleFavorite } = useLibraryStore();
   const { openModal } = useUIStore();
+  const { user } = useAuthStore();
+  const { startDownload, removeDownload, isDownloaded } = useDownloadStore();
 
   const isCurrentTrack = currentTrack?.id === media.id;
   const isLiked = isFavorite(media.id);
   const isVideo = media.type === 'video';
+  const downloaded = isDownloaded(media.id);
 
   const handlePlay = (e) => {
     e.stopPropagation();
@@ -119,6 +123,13 @@ export default function MediaCard({ media, queue = [], index = 0, size = 'medium
           </span>
         </div>
 
+        {/* Download button */}
+        {user && (
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <DownloadButton media={media} size="sm" />
+          </div>
+        )}
+
         {/* Currently playing indicator */}
         {isCurrentTrack && isPlaying && (
           <div className="absolute bottom-2 right-2 flex items-end gap-0.5">
@@ -182,6 +193,30 @@ export default function MediaCard({ media, queue = [], index = 0, size = 'medium
               <ListPlus className="mr-2 h-4 w-4" />
               Add to Playlist
             </DropdownMenuItem>
+            {user && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (downloaded) {
+                    removeDownload(media.id);
+                  } else {
+                    startDownload(media);
+                  }
+                }}
+              >
+                {downloaded ? (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove Download
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download
+                  </>
+                )}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={(e) => {

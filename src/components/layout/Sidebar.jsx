@@ -14,6 +14,7 @@ import {
   X,
   LayoutDashboard,
   Users,
+  Download,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUIStore, useAuthStore, useLibraryStore } from '../../store';
@@ -31,12 +32,13 @@ const mainNavItems = [
 const libraryItems = [
   { icon: PlusSquare, label: 'Create Playlist', path: '/playlist/create' },
   { icon: Heart, label: 'Liked Songs', path: '/liked' },
+  { icon: Download, label: 'Downloads', path: '/downloads', requiresAuth: true },
   { icon: Clock, label: 'History', path: '/history' },
 ];
 
 function Sidebar() {
   const { sidebarCollapsed, setSidebarCollapsed, sidebarMobileOpen, closeMobileSidebar } = useUIStore();
-  const { isAdminUser } = useAuthStore();
+  const { isAdminUser, user } = useAuthStore();
   const { playlists } = useLibraryStore();
   const location = useLocation();
 
@@ -44,6 +46,11 @@ function Sidebar() {
     expanded: { width: 280 },
     collapsed: { width: 80 },
   };
+
+  // Filter library items based on auth
+  const filteredLibraryItems = libraryItems.filter(
+    (item) => !item.requiresAuth || (item.requiresAuth && user)
+  );
 
   const NavItem = ({ item, collapsed }) => {
     const Icon = item.icon;
@@ -135,7 +142,7 @@ function Sidebar() {
 
       {/* Library Section */}
       <nav className="px-2 space-y-1">
-        {libraryItems.map((item) => (
+        {filteredLibraryItems.map((item) => (
           <NavItem key={item.path} item={item} collapsed={collapsed} />
         ))}
       </nav>
