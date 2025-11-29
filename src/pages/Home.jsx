@@ -16,27 +16,25 @@ export default function Home() {
   // Get items that can be resumed
   const resumeItems = useMemo(() => getResumeItems(), [getResumeItems, playbackProgress, history]);
 
-  // Fetch all media
+  // Fetch all media (single request, filter client-side due to backend type filter bug)
   const { data: mediaData, isLoading: mediaLoading } = useQuery({
     queryKey: ['media', 'all'],
     queryFn: () => publicApi.getMedia({ limit: 50 }),
   });
 
-  // Fetch videos only
-  const { data: videosData, isLoading: videosLoading } = useQuery({
-    queryKey: ['media', 'videos'],
-    queryFn: () => publicApi.getMedia({ type: 'video', limit: 12 }),
-  });
-
-  // Fetch audio only
-  const { data: audioData, isLoading: audioLoading } = useQuery({
-    queryKey: ['media', 'audio'],
-    queryFn: () => publicApi.getMedia({ type: 'audio', limit: 12 }),
-  });
-
   const allMedia = mediaData?.data || [];
-  const videos = videosData?.data || [];
-  const audio = audioData?.data || [];
+  
+  // Filter videos and audio client-side
+  const videos = useMemo(() => 
+    allMedia.filter(item => item.type === 'video').slice(0, 12), 
+    [allMedia]
+  );
+  
+  const audio = useMemo(() => 
+    allMedia.filter(item => item.type === 'audio').slice(0, 12), 
+    [allMedia]
+  );
+  
   const recentlyPlayed = history.slice(0, 6);
 
   // Get greeting based on time
@@ -257,7 +255,7 @@ export default function Home() {
         <section>
           <MediaGrid
             media={videos}
-            isLoading={videosLoading}
+            isLoading={mediaLoading}
             title="Videos"
             emptyMessage={
               <div className="text-center py-8">
@@ -279,7 +277,7 @@ export default function Home() {
         <section>
           <MediaGrid
             media={audio}
-            isLoading={audioLoading}
+            isLoading={mediaLoading}
             title="Audio"
             emptyMessage={
               <div className="text-center py-8">

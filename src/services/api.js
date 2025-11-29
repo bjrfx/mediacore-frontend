@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getIdToken } from '../config/firebase';
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://mediacoreapi.masakalirestrobar.ca';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://test.mediacoreapi.masakalirestrobar.ca';
 const API_KEY = process.env.REACT_APP_PUBLIC_API_KEY || '';
 
 console.log('[API] Base URL:', API_BASE_URL);
