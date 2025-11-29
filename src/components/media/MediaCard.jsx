@@ -2,7 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Play, Pause, MoreHorizontal, Heart, ListPlus, Video, Music, Download, Trash2 } from 'lucide-react';
 import { cn, generateGradient } from '../../lib/utils';
-import { usePlayerStore, useLibraryStore, useUIStore, useDownloadStore, useAuthStore } from '../../store';
+import usePlayerStore from '../../store/playerStore';
+import useLibraryStore from '../../store/libraryStore';
+import useUIStore from '../../store/uiStore';
+import useDownloadStore from '../../store/downloadStore';
+import useAuthStore from '../../store/authStore';
 import { Button } from '../ui/button';
 import DownloadButton from '../ui/DownloadButton';
 import {

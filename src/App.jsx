@@ -15,6 +15,9 @@ import { LoginModal, ProtectedRoute } from './components/auth';
 // Player
 import { VideoPlayer } from './components/player';
 
+// PWA
+import { InstallPrompt } from './components/pwa';
+
 // Lazy load pages for better performance
 const Home = lazy(() => import('./pages/Home'));
 const Search = lazy(() => import('./pages/Search'));
@@ -191,6 +194,9 @@ function App() {
               <VideoPlayer onClose={() => setShowVideoPlayer(false)} />
             )}
           </AnimatePresence>
+
+          {/* PWA Install Prompt */}
+          <InstallPrompt />
         </div>
       </Router>
     </QueryClientProvider>

@@ -4,3 +4,4 @@ export { default as useLibraryStore } from './libraryStore';
 export { default as useUIStore } from './uiStore';
 export { default as useContentStore } from './contentStore';
 export { default as useDownloadStore, DownloadStatus } from './downloadStore';
+export { default as usePWAStore } from './pwaStore';

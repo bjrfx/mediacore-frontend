@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Download, Check, X, RefreshCw, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import useDownloadStore, { DownloadStatus } from '../../store/downloadStore';
-import { useAuthStore } from '../../store';
+import useAuthStore from '../../store/authStore';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './tooltip';
 
 const DownloadButton = memo(function DownloadButton({ 
