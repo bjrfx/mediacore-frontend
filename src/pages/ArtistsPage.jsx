@@ -130,15 +130,14 @@ function ArtistCard({ artist, index }) {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  // Fetch artist's media count
-  const { data: mediaData } = useQuery({
-    queryKey: ['artist', artist.id, 'media'],
-    queryFn: () => publicApi.getArtistMedia(artist.id),
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
 
-  const albumCount = albumsData?.data?.length || 0;
-  const trackCount = mediaData?.data?.length || 0;
+  const albums = albumsData?.data || [];
+  const albumCount = albums.length;
+
+  // Calculate total track count from album trackCounts
+  const trackCount = useMemo(() => {
+    return albums.reduce((total, album) => total + (album.trackCount || 0), 0);
+  }, [albums]);
 
   return (
     <motion.div

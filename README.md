@@ -8,7 +8,7 @@ A production-grade media streaming frontend built with React, TailwindCSS, and S
 - 🏠 **Home Feed** - Discover trending and recent media
 - 🔍 **Search** - Search with real-time filtering by type
 - 📚 **Library** - Personal media library management
-- ❤️ **Liked Songs** - Quick access to favorite tracks
+- ❤️ **Liked** - Quick access to favorite tracks
 - 📜 **History** - View listening/watching history
 - 🎵 **Playlists** - Create, edit, and manage playlists
 - 🎬 **Video Player** - Full-featured video playback with PiP support

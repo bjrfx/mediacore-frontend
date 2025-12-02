@@ -241,7 +241,7 @@ export default function Library() {
           {favorites.length === 0 ? (
             <div className="text-center py-12">
               <Heart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No liked songs yet</h3>
+              <h3 className="text-xl font-semibold mb-2">No liked content yet</h3>
               <p className="text-muted-foreground">
                 Songs you like will appear here
               </p>

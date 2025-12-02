@@ -52,16 +52,24 @@ export default function ArtistPage() {
     enabled: !!artistId,
   });
 
-  // Fetch artist's media
-  const { data: mediaData, isLoading: mediaLoading } = useQuery({
-    queryKey: ['artist', artistId, 'media'],
-    queryFn: () => publicApi.getArtistMedia(artistId),
-    enabled: !!artistId,
-  });
 
   const artist = artistData?.data;
   const artistAlbums = useMemo(() => albumsData?.data || [], [albumsData?.data]);
-  const artistMedia = useMemo(() => mediaData?.data || [], [mediaData?.data]);
+
+  // Fetch media for each album and combine them
+  const { data: allAlbumMedia, isLoading: mediaLoading } = useQuery({
+    queryKey: ["artist", artistId, "allAlbumMedia", artistAlbums.map(a => a.id).join(",")],
+    queryFn: async () => {
+      const mediaPromises = artistAlbums.map(album =>
+        publicApi.getAlbumMedia(album.id).then(res => res?.data || [])
+      );
+      const allMedia = await Promise.all(mediaPromises);
+      return allMedia.flat();
+    },
+    enabled: artistAlbums.length > 0,
+  });
+
+  const artistMedia = useMemo(() => allAlbumMedia || [], [allAlbumMedia]);
 
   // Calculate stats
   const stats = useMemo(() => {
