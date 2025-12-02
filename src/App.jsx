@@ -1,5 +1,5 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { onAuthStateChanged } from 'firebase/auth';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -84,14 +84,11 @@ const NotFound = () => (
   </div>
 );
 
-// Main app routes with animation
+// Main app routes
 function AppRoutes() {
-  const location = useLocation();
-
   return (
-    <AnimatePresence mode="wait">
-      <Suspense fallback={<PageLoader />}>
-        <Routes location={location} key={location.pathname}>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
           {/* Main app routes */}
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Home />} />
@@ -132,7 +129,6 @@ function AppRoutes() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
-    </AnimatePresence>
   );
 }
 

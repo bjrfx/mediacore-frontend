@@ -75,7 +75,7 @@ export default function MediaPlayer() {
       playTrack(media);
       addToHistory(media);
     }
-  }, [media, currentTrack, playTrack, addToHistory]);
+  }, [media?.id, currentTrack?.id, playTrack, addToHistory]);
 
   const handleSeek = (value) => {
     const time = (value[0] / 100) * duration;

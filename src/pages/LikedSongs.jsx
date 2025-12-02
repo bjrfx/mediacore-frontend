@@ -44,7 +44,7 @@ export default function LikedSongs() {
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-6xl font-bold mt-2 mb-4"
             >
-              Liked Songs
+              Liked 
             </motion.h1>
             <div className="text-muted-foreground">
               {favorites.length} songs
