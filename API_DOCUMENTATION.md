@@ -10,10 +10,12 @@
 6. [Artists API Endpoints](#artists-api-endpoints)
 7. [Albums API Endpoints](#albums-api-endpoints)
 8. [Album-Media Relationship Endpoints](#album-media-relationship-endpoints)
-9. [Analytics Endpoints](#analytics-endpoints)
-10. [Error Handling](#error-handling)
-11. [Frontend Integration Guide](#frontend-integration-guide)
-12. [Code Examples](#code-examples)
+9. [User Management Endpoints](#user-management-endpoints)
+10. [Analytics Endpoints](#analytics-endpoints)
+11. [Journal API Endpoints](#journal-api-endpoints)
+12. [Error Handling](#error-handling)
+13. [Frontend Integration Guide](#frontend-integration-guide)
+14. [Code Examples](#code-examples)
 
 ---
 
@@ -104,7 +106,7 @@ x-api-key: mc_your_api_key_here
       "title": "Sample Video",
       "subtitle": "Description here",
       "type": "video",
-      "fileUrl": "https://mediacoreapi.masakalirestrobar.ca/public/uploads/video/uuid.mp4",
+      "fileUrl": "https://test.mediacoreapi.masakalirestrobar.ca/public/uploads/video/uuid.mp4",
       "fileSize": 15728640,
       "mimeType": "video/mp4",
       "createdAt": "2025-11-28T10:30:00.000Z"
@@ -133,7 +135,7 @@ x-api-key: mc_your_api_key_here
     "title": "Sample Video",
     "subtitle": "Description here",
     "type": "video",
-    "fileUrl": "https://mediacoreapi.masakalirestrobar.ca/public/uploads/video/uuid.mp4",
+    "fileUrl": "https://test.mediacoreapi.masakalirestrobar.ca/public/uploads/video/uuid.mp4",
     "fileSize": 15728640,
     "mimeType": "video/mp4",
     "createdAt": "2025-11-28T10:30:00.000Z"
@@ -288,7 +290,7 @@ Content-Type: multipart/form-data
   "data": {
     "id": "media_id",
     "title": "My Video",
-    "fileUrl": "https://mediacoreapi.masakalirestrobar.ca/public/uploads/video/uuid.mp4",
+    "fileUrl": "https://test.mediacoreapi.masakalirestrobar.ca/public/uploads/video/uuid.mp4",
     "fileSize": 15728640,
     "createdAt": "2025-11-28T10:30:00.000Z"
   }
@@ -798,6 +800,208 @@ Update media metadata including artist and album assignments.
 
 ---
 
+## User Management Endpoints
+
+All user management endpoints require **Firebase Admin Authentication**.
+
+### GET /admin/users
+
+List all users with pagination.
+
+**Headers:**
+```
+Authorization: Bearer <firebase_id_token>
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | number | 100 | Maximum users to return (max 1000) |
+| `pageToken` | string | - | Token for pagination (from previous response) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "count": 50,
+  "pageToken": "next_page_token_here",
+  "data": [
+    {
+      "uid": "user123abc",
+      "email": "user@example.com",
+      "displayName": "John Doe",
+      "photoURL": "https://example.com/photo.jpg",
+      "phoneNumber": "+1234567890",
+      "disabled": false,
+      "emailVerified": true,
+      "creationTime": "2025-01-15T10:30:00.000Z",
+      "lastSignInTime": "2025-11-28T15:45:00.000Z",
+      "role": "user",
+      "customClaims": {}
+    }
+  ]
+}
+```
+
+---
+
+### GET /admin/users/:uid
+
+Get a single user by UID.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "uid": "user123abc",
+    "email": "user@example.com",
+    "displayName": "John Doe",
+    "photoURL": "https://example.com/photo.jpg",
+    "phoneNumber": "+1234567890",
+    "disabled": false,
+    "emailVerified": true,
+    "creationTime": "2025-01-15T10:30:00.000Z",
+    "lastSignInTime": "2025-11-28T15:45:00.000Z",
+    "role": "admin",
+    "customClaims": { "role": "admin", "isAdmin": true },
+    "providerData": [...]
+  }
+}
+```
+
+---
+
+### POST /admin/users
+
+Create a new user.
+
+**Body:**
+```json
+{
+  "email": "newuser@example.com",
+  "password": "securePassword123",
+  "displayName": "New User",
+  "role": "user",
+  "phoneNumber": "+1234567890"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `email` | string | Yes | User's email address |
+| `password` | string | Yes | User's password |
+| `displayName` | string | No | User's display name |
+| `role` | string | No | Role: `admin`, `moderator`, or `user` (default: `user`) |
+| `phoneNumber` | string | No | Phone number in E.164 format |
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User created successfully",
+  "data": {
+    "uid": "newuser123",
+    "email": "newuser@example.com",
+    "displayName": "New User",
+    "role": "user",
+    "createdAt": "2025-11-29T10:30:00.000Z"
+  }
+}
+```
+
+---
+
+### PUT /admin/users/:uid/role
+
+Update a user's role.
+
+**Body:**
+```json
+{
+  "role": "admin"
+}
+```
+
+| Role | Description |
+|------|-------------|
+| `admin` | Full administrative access |
+| `moderator` | Limited administrative access |
+| `user` | Standard user (default) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User role updated to 'admin' successfully",
+  "data": {
+    "uid": "user123abc",
+    "email": "user@example.com",
+    "role": "admin",
+    "updatedAt": "2025-11-29T10:30:00.000Z"
+  }
+}
+```
+
+> **Note:** Admins cannot demote themselves.
+
+---
+
+### PUT /admin/users/:uid/status
+
+Enable or disable a user account.
+
+**Body:**
+```json
+{
+  "disabled": true
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `disabled` | boolean | Yes | `true` to disable, `false` to enable |
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User account disabled successfully",
+  "data": {
+    "uid": "user123abc",
+    "email": "user@example.com",
+    "disabled": true,
+    "updatedAt": "2025-11-29T10:30:00.000Z"
+  }
+}
+```
+
+> **Note:** Admins cannot disable their own account.
+
+---
+
+### DELETE /admin/users/:uid
+
+Delete a user account permanently.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User deleted successfully",
+  "data": {
+    "deletedUid": "user123abc",
+    "deletedEmail": "user@example.com"
+  }
+}
+```
+
+> **Warning:** This action is irreversible. The user's Firebase Auth record, role data, and user data will be permanently deleted.
+
+> **Note:** Admins cannot delete their own account.
+
+---
+
 ## Analytics Endpoints
 
 All analytics endpoints require **Firebase Admin Authentication**.
@@ -902,7 +1106,7 @@ import axios from 'axios';
 import { getAuth } from 'firebase/auth';
 
 // API Configuration
-const API_BASE_URL = 'https://mediacoreapi.masakalirestrobar.ca';
+const API_BASE_URL = 'https://test.mediacoreapi.masakalirestrobar.ca';
 // For local development: 'http://localhost:3000'
 
 // Create axios instance
@@ -1585,7 +1789,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class MediaCoreApi {
-  static const String baseUrl = 'https://mediacoreapi.masakalirestrobar.ca';
+  static const String baseUrl = 'https://test.mediacoreapi.masakalirestrobar.ca';
   static const String apiKey = 'mc_your_api_key_here';
 
   // Fetch media feed
@@ -1633,32 +1837,367 @@ void main() async {
 
 ---
 
+## Journal API Endpoints
+
+The Journal feature uses MySQL database and Firebase Authentication (not API keys). All endpoints require a valid Firebase ID token.
+
+### Database Setup
+
+Run the SQL script at `scripts/journal_tables.sql` on your MySQL database to create the required tables.
+
+### Authentication
+
+All Journal endpoints require Firebase Authentication:
+
+```
+Authorization: Bearer <firebase-id-token>
+```
+
+### Endpoints Summary
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/journal/entries` | Create a journal entry |
+| GET | `/api/journal/entries` | List entries (with filters) |
+| GET | `/api/journal/entries/:id` | Get single entry |
+| PUT | `/api/journal/entries/:id` | Update entry |
+| DELETE | `/api/journal/entries/:id` | Delete entry |
+| POST | `/api/journal/entries/:id/media` | Upload media to entry |
+| DELETE | `/api/journal/entries/:id/media/:mediaId` | Delete media from entry |
+| POST | `/api/journal/sync` | Bulk sync for local-first storage |
+| GET | `/api/journal/stats` | Get user's journal statistics |
+
+---
+
+### POST /api/journal/entries
+
+Create a new journal entry.
+
+**Request Body:**
+```json
+{
+  "title": "A Great Day",
+  "content": "<p>Today was wonderful...</p>",
+  "plainText": "Today was wonderful...",
+  "mood": {
+    "value": 85,
+    "emotions": ["Happy", "Grateful"]
+  },
+  "location": {
+    "name": "San Francisco, CA",
+    "latitude": 37.7749,
+    "longitude": -122.4194
+  },
+  "tags": ["personal", "gratitude"],
+  "clientId": "uuid-from-frontend",
+  "isFavorite": false
+}
+```
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Journal entry created successfully",
+  "entry": {
+    "id": 123,
+    "clientId": "uuid-from-frontend",
+    "userId": "firebase-uid",
+    "title": "A Great Day",
+    "content": "<p>Today was wonderful...</p>",
+    "plainText": "Today was wonderful...",
+    "mood": { "value": 85, "emotions": ["Happy", "Grateful"] },
+    "location": { "name": "San Francisco, CA", "latitude": 37.7749, "longitude": -122.4194 },
+    "media": [],
+    "tags": ["personal", "gratitude"],
+    "isFavorite": false,
+    "isDeleted": false,
+    "createdAt": "2025-11-30T10:30:00Z",
+    "updatedAt": "2025-11-30T10:30:00Z"
+  }
+}
+```
+
+---
+
+### GET /api/journal/entries
+
+List journal entries with filtering and pagination.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `search` | string | Full-text search on title and plainText |
+| `mood` | string | Filter by mood: `positive`, `neutral`, `negative` |
+| `startDate` | ISO date | Entries created after this date |
+| `endDate` | ISO date | Entries created before this date |
+| `tags` | string | Comma-separated tags to filter by |
+| `favorite` | boolean | Only favorite entries |
+| `limit` | number | Max entries to return (default: 50, max: 100) |
+| `offset` | number | Pagination offset (default: 0) |
+| `sort` | string | `newest` or `oldest` (default: newest) |
+| `since` | ISO date | Entries modified after this date (for sync) |
+| `includeDeleted` | boolean | Include soft-deleted entries |
+
+**Example Request:**
+```
+GET /api/journal/entries?search=grateful&mood=positive&limit=20&sort=newest
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "entries": [
+    {
+      "id": 123,
+      "clientId": "uuid",
+      "title": "A Great Day",
+      "content": "<p>...</p>",
+      "plainText": "...",
+      "mood": { "value": 85, "emotions": ["Happy"] },
+      "media": [],
+      "tags": ["personal"],
+      "isFavorite": false,
+      "createdAt": "2025-11-30T10:30:00Z",
+      "updatedAt": "2025-11-30T10:30:00Z"
+    }
+  ],
+  "total": 150,
+  "hasMore": true,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+---
+
+### GET /api/journal/entries/:id
+
+Get a single journal entry by ID.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "entry": {
+    "id": 123,
+    "clientId": "uuid",
+    "title": "A Great Day",
+    "content": "<p>Today was wonderful...</p>",
+    "plainText": "Today was wonderful...",
+    "mood": { "value": 85, "emotions": ["Happy", "Grateful"] },
+    "location": { "name": "San Francisco, CA", "latitude": 37.7749, "longitude": -122.4194 },
+    "media": [
+      {
+        "id": "media-uuid",
+        "type": "image",
+        "url": "/public/uploads/journal/images/photo.jpg",
+        "filename": "photo.jpg",
+        "size": 245000,
+        "mimeType": "image/jpeg"
+      }
+    ],
+    "tags": ["personal", "gratitude"],
+    "isFavorite": true,
+    "isDeleted": false,
+    "createdAt": "2025-11-30T10:30:00Z",
+    "updatedAt": "2025-11-30T10:30:00Z"
+  }
+}
+```
+
+---
+
+### PUT /api/journal/entries/:id
+
+Update a journal entry. Only include fields you want to update.
+
+**Request Body:**
+```json
+{
+  "title": "Updated Title",
+  "mood": { "value": 90, "emotions": ["Joyful"] },
+  "isFavorite": true
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Journal entry updated successfully",
+  "entry": { ... }
+}
+```
+
+---
+
+### DELETE /api/journal/entries/:id
+
+Delete a journal entry. Soft delete by default (for sync).
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `hard` | boolean | If `true`, permanently delete |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Journal entry deleted"
+}
+```
+
+---
+
+### POST /api/journal/entries/:id/media
+
+Upload media (image or audio) to a journal entry.
+
+**Request:** `multipart/form-data`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `file` | File | Image (jpeg, png, gif, webp) or Audio (mp3, wav, m4a) |
+| `duration` | number | Duration in seconds (for audio, optional) |
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Media uploaded successfully",
+  "media": {
+    "id": "uuid",
+    "type": "image",
+    "url": "/public/uploads/journal/images/uuid.jpg",
+    "filename": "photo.jpg",
+    "size": 245000,
+    "mimeType": "image/jpeg"
+  }
+}
+```
+
+---
+
+### DELETE /api/journal/entries/:id/media/:mediaId
+
+Delete media from a journal entry.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Media deleted successfully"
+}
+```
+
+---
+
+### POST /api/journal/sync
+
+Bulk sync endpoint for local-first storage. Sends local changes and receives server changes.
+
+**Request Body:**
+```json
+{
+  "entries": [
+    {
+      "clientId": "local-uuid-1",
+      "title": "Entry from offline",
+      "content": "...",
+      "plainText": "...",
+      "mood": { "value": 75, "emotions": [] },
+      "tags": [],
+      "isFavorite": false,
+      "isDeleted": false,
+      "createdAt": "2025-11-29T08:00:00Z",
+      "updatedAt": "2025-11-29T08:00:00Z"
+    }
+  ],
+  "lastSyncedAt": "2025-11-29T00:00:00Z"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "syncedAt": "2025-11-30T12:00:00Z",
+  "created": [{ "id": 124, "clientId": "local-uuid-1", ... }],
+  "updated": [],
+  "conflicts": [
+    {
+      "clientEntry": { ... },
+      "serverEntry": { ... },
+      "reason": "Server has newer version"
+    }
+  ],
+  "serverChanges": [
+    { "id": 125, "clientId": "...", "title": "Entry modified on server", ... }
+  ]
+}
+```
+
+---
+
+### GET /api/journal/stats
+
+Get journal statistics for the authenticated user.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "stats": {
+    "totalEntries": 150,
+    "favoriteCount": 12,
+    "mood": {
+      "average": 72,
+      "min": 15,
+      "max": 98
+    },
+    "topTags": [
+      { "tag": "personal", "count": 45 },
+      { "tag": "work", "count": 30 },
+      { "tag": "gratitude", "count": 25 }
+    ],
+    "currentStreak": 7
+  }
+}
+```
+
+---
+
 ## Code Examples
 
 ### cURL Examples
 
 ```bash
 # Health Check
-curl https://mediacoreapi.masakalirestrobar.ca/health
+curl https://test.mediacoreapi.masakalirestrobar.ca/health
 
 # Get Media Feed (with API Key)
 curl -H "x-api-key: mc_your_key_here" \
-  https://mediacoreapi.masakalirestrobar.ca/api/feed
+  https://test.mediacoreapi.masakalirestrobar.ca/api/feed
 
 # Get Media Feed (filtered by type)
 curl -H "x-api-key: mc_your_key_here" \
-  "https://mediacoreapi.masakalirestrobar.ca/api/feed?type=video&limit=10"
+  "https://test.mediacoreapi.masakalirestrobar.ca/api/feed?type=video&limit=10"
 
 # Get Single Media
 curl -H "x-api-key: mc_your_key_here" \
-  https://mediacoreapi.masakalirestrobar.ca/api/media/MEDIA_ID
+  https://test.mediacoreapi.masakalirestrobar.ca/api/media/MEDIA_ID
 
 # Admin - Generate API Key (with Firebase Token)
 curl -X POST \
   -H "Authorization: Bearer FIREBASE_ID_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"My App","accessType":"read_only"}' \
-  https://mediacoreapi.masakalirestrobar.ca/admin/generate-key
+  https://test.mediacoreapi.masakalirestrobar.ca/admin/generate-key
 
 # Admin - Upload Media
 curl -X POST \
@@ -1666,11 +2205,11 @@ curl -X POST \
   -F "file=@/path/to/video.mp4" \
   -F "title=My Video" \
   -F "type=video" \
-  https://mediacoreapi.masakalirestrobar.ca/admin/media
+  https://test.mediacoreapi.masakalirestrobar.ca/admin/media
 
 # Admin - Get Dashboard
 curl -H "Authorization: Bearer FIREBASE_ID_TOKEN" \
-  https://mediacoreapi.masakalirestrobar.ca/admin/analytics/dashboard
+  https://test.mediacoreapi.masakalirestrobar.ca/admin/analytics/dashboard
 ```
 
 ---
@@ -1708,6 +2247,13 @@ curl -H "Authorization: Bearer FIREBASE_ID_TOKEN" \
 | POST | `/admin/albums/:albumId/media` | Firebase | Add media to album |
 | DELETE | `/admin/albums/:albumId/media/:mediaId` | Firebase | Remove media from album |
 | PUT | `/admin/albums/:albumId/media/reorder` | Firebase | Reorder tracks |
+| **User Management** | | | |
+| GET | `/admin/users` | Firebase | List all users |
+| GET | `/admin/users/:uid` | Firebase | Get single user |
+| POST | `/admin/users` | Firebase | Create user |
+| PUT | `/admin/users/:uid/role` | Firebase | Update user role |
+| PUT | `/admin/users/:uid/status` | Firebase | Enable/disable user |
+| DELETE | `/admin/users/:uid` | Firebase | Delete user |
 | **Settings** | | | |
 | GET | `/api/settings` | API Key | Get app settings |
 | PUT | `/admin/settings` | Firebase | Update settings |

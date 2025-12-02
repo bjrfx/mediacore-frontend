@@ -15,7 +15,6 @@ import {
   LayoutDashboard,
   Users,
   Download,
-  BookHeart,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUIStore, useAuthStore, useLibraryStore } from '../../store';
@@ -28,7 +27,6 @@ const mainNavItems = [
   { icon: Search, label: 'Search', path: '/search' },
   { icon: Library, label: 'Your Library', path: '/library' },
   { icon: Users, label: 'Artists', path: '/artists' },
-  { icon: BookHeart, label: 'Journal', path: '/journal' },
 ];
 
 const libraryItems = [
