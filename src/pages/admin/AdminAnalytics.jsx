@@ -62,10 +62,21 @@ export default function AdminAnalytics() {
     queryFn: () => adminApi.getDashboard(),
   });
 
+  // Fetch API keys for usage fallback
+  const { data: apiKeysData } = useQuery({
+    queryKey: ['admin', 'api-keys'],
+    queryFn: () => adminApi.getApiKeys(),
+  });
+
   const summary = summaryData?.data || {};
   const realtime = realtimeData?.data || {};
   const dashboard = dashboardData?.data || {};
   const charts = dashboard.charts || {};
+  const apiKeys = apiKeysData?.data || [];
+
+  // Fallback: Calculate total requests from API key usage if analytics is empty
+  const totalRequestsFromKeys = apiKeys.reduce((acc, k) => acc + (k.usageCount || 0), 0);
+  const hasFallbackData = totalRequestsFromKeys > 0 && !summary.totalRequests;
 
   const isLoading = summaryLoading || realtimeLoading || dashboardLoading;
 
@@ -99,6 +110,18 @@ export default function AdminAnalytics() {
         </Select>
       </div>
 
+      {/* Notice when using fallback data */}
+      {hasFallbackData && (
+        <Card className="border-yellow-500/30 bg-yellow-500/5">
+          <CardContent className="py-3 px-4">
+            <p className="text-sm text-yellow-500">
+              ⚠️ Detailed analytics not available. Showing aggregate data from API key usage.
+              Enable request logging on the backend for full analytics.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Real-time stats */}
       <Card>
         <CardHeader>
@@ -118,25 +141,25 @@ export default function AdminAnalytics() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
                 <p className="text-3xl font-bold text-primary">
-                  {formatNumber(realtime.requestsLast24h || 0)}
+                  {hasFallbackData ? '—' : formatNumber(realtime.requestsLast24h || 0)}
                 </p>
                 <p className="text-sm text-muted-foreground">Requests</p>
               </div>
               <div className="text-center">
                 <p className="text-3xl font-bold">
-                  {realtime.avgResponseTime?.toFixed(0) || 0}ms
+                  {hasFallbackData ? '—' : `${realtime.avgResponseTime?.toFixed(0) || 0}ms`}
                 </p>
                 <p className="text-sm text-muted-foreground">Avg Response</p>
               </div>
               <div className="text-center">
                 <p className="text-3xl font-bold text-green-500">
-                  {realtime.successRate?.toFixed(1) || 0}%
+                  {hasFallbackData ? '~100%' : `${realtime.successRate?.toFixed(1) || 0}%`}
                 </p>
                 <p className="text-sm text-muted-foreground">Success Rate</p>
               </div>
               <div className="text-center">
                 <p className="text-3xl font-bold">
-                  {realtime.uniqueVisitors || 0}
+                  {hasFallbackData ? '—' : (realtime.uniqueVisitors || 0)}
                 </p>
                 <p className="text-sm text-muted-foreground">Unique IPs</p>
               </div>
@@ -150,13 +173,13 @@ export default function AdminAnalytics() {
         {[
           {
             title: 'Total Requests',
-            value: formatNumber(summary.totalRequests || 0),
+            value: formatNumber(summary.totalRequests || totalRequestsFromKeys || 0),
             icon: Activity,
             color: 'text-blue-500',
           },
           {
             title: 'Successful',
-            value: formatNumber(summary.successfulRequests || 0),
+            value: formatNumber(summary.successfulRequests || (hasFallbackData ? totalRequestsFromKeys : 0)),
             icon: CheckCircle,
             color: 'text-green-500',
           },

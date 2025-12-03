@@ -55,6 +55,11 @@ export default function AdminOverview() {
   const videoCount = allMedia.filter((m) => m.type === 'video').length;
   const audioCount = allMedia.filter((m) => m.type === 'audio').length;
   const activeKeys = apiKeys.filter((k) => k.isActive).length;
+  
+  // Calculate total requests from API key usage (fallback if analytics is empty)
+  const totalRequestsFromKeys = apiKeys.reduce((acc, k) => acc + (k.usageCount || 0), 0);
+  const totalRequests = overview.totalRequests || totalRequestsFromKeys;
+  const successRate = overview.successRate || (totalRequests > 0 ? 100 : 0);
 
   const stats = [
     {
@@ -87,14 +92,14 @@ export default function AdminOverview() {
     },
     {
       title: 'Total Requests',
-      value: formatNumber(overview.totalRequests || 0),
+      value: formatNumber(totalRequests),
       icon: Activity,
       color: 'text-cyan-500',
       bgColor: 'bg-cyan-500/10',
     },
     {
       title: 'Success Rate',
-      value: `${overview.successRate?.toFixed(1) || 0}%`,
+      value: `${successRate.toFixed ? successRate.toFixed(1) : successRate}%`,
       icon: CheckCircle,
       color: 'text-emerald-500',
       bgColor: 'bg-emerald-500/10',
