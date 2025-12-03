@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useCallback, useState, memo } from 'react';
+import React, { useRef, useEffect, useCallback, useState, memo, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactPlayer from 'react-player';
 import {
@@ -30,6 +31,7 @@ import {
 } from 'lucide-react';
 import { cn, formatDuration, generateGradient } from '../../lib/utils';
 import { usePlayerStore, useLibraryStore, useDownloadStore } from '../../store';
+import { publicApi } from '../../services/api';
 import { Button } from '../ui/button';
 import { Slider } from '../ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../ui/tooltip';
@@ -44,6 +46,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from '../ui/dropdown-menu';
+import LanguageSelector from '../player/LanguageSelector';
 
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
@@ -92,10 +95,63 @@ function MiniPlayer() {
     setBuffered,
     closeMiniPlayer,
     clearSeekToTime,
+    playTrack,
   } = usePlayerStore();
 
   const { toggleFavorite, isFavorite } = useLibraryStore();
   const isVideo = currentTrack?.type === 'video';
+
+  // Fetch language variants for current content
+  const { data: languageVariantsData } = useQuery({
+    queryKey: ['language-variants', currentTrack?.contentGroupId],
+    queryFn: () => publicApi.getLanguageVariants(currentTrack?.contentGroupId),
+    enabled: !!currentTrack?.contentGroupId,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Get available languages for current track
+  const availableLanguages = useMemo(() => {
+    if (languageVariantsData?.data && languageVariantsData.data.length > 0) {
+      return languageVariantsData.data.map(item => ({
+        code: item.language || 'en',
+        name: item.title,
+        mediaId: item.id,
+        fileUrl: item.fileUrl,
+      }));
+    }
+    // Fallback: just current track's language
+    if (currentTrack?.language) {
+      return [{
+        code: currentTrack.language,
+        name: currentTrack.title,
+        mediaId: currentTrack.id,
+        fileUrl: currentTrack.fileUrl,
+      }];
+    }
+    return [];
+  }, [languageVariantsData, currentTrack]);
+
+  // Handle language change
+  const handleLanguageChange = useCallback((langOption) => {
+    if (langOption.mediaId && langOption.mediaId !== currentTrack?.id) {
+      // Find the full media object from variants
+      const variant = languageVariantsData?.data?.find(v => v.id === langOption.mediaId);
+      if (variant) {
+        // Play the new language variant, preserving current time
+        playTrack({
+          ...variant,
+          language: langOption.code,
+        }, null, false); // false = don't resume from saved, we'll set time manually
+        
+        // Seek to current time after a short delay
+        setTimeout(() => {
+          if (playerRef.current && currentTime > 0) {
+            playerRef.current.seekTo(currentTime, 'seconds');
+          }
+        }, 500);
+      }
+    }
+  }, [currentTrack, languageVariantsData, playTrack, currentTime]);
 
   // Auto-hide controls for video
   const hideControls = useCallback(() => {
@@ -587,6 +643,15 @@ function MiniPlayer() {
                       </Tooltip>
                     </TooltipProvider>
                   )}
+
+                  {/* Language selector */}
+                  <LanguageSelector
+                    currentLanguage={currentTrack?.language || 'en'}
+                    availableLanguages={availableLanguages}
+                    onLanguageChange={handleLanguageChange}
+                    isVideoMode={isVideoMode && isVideo}
+                    variant="full"
+                  />
 
                   {/* Settings menu */}
                   <DropdownMenu>
@@ -1130,6 +1195,17 @@ function MiniPlayer() {
         <span className="text-xs text-muted-foreground w-10">
           {formatDuration(duration)}
         </span>
+      </div>
+
+      {/* Language selector for mini player */}
+      <div className="hidden md:flex">
+        <LanguageSelector
+          currentLanguage={currentTrack?.language || 'en'}
+          availableLanguages={availableLanguages}
+          onLanguageChange={handleLanguageChange}
+          isVideoMode={false}
+          variant="mini"
+        />
       </div>
 
       {/* Volume */}

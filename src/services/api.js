@@ -87,6 +87,34 @@ export const publicApi = {
     return response.data;
   },
 
+  // Get language variants for a content group
+  getLanguageVariants: async (contentGroupId) => {
+    const response = await api.get(`/api/media/languages/${contentGroupId}`, {
+      headers: { 'x-api-key': API_KEY },
+    });
+    return response.data;
+  },
+
+  // Get media by language
+  getMediaByLanguage: async (language, options = {}) => {
+    const { type, limit = 50, orderBy = 'createdAt', order = 'desc' } = options;
+    const params = new URLSearchParams({ limit: String(limit), orderBy, order, language });
+    if (type) params.append('type', type);
+
+    const response = await api.get(`/api/feed?${params}`, {
+      headers: { 'x-api-key': API_KEY },
+    });
+    return response.data;
+  },
+
+  // Get available languages
+  getAvailableLanguages: async () => {
+    const response = await api.get('/api/languages', {
+      headers: { 'x-api-key': API_KEY },
+    });
+    return response.data;
+  },
+
   // Get app settings
   getSettings: async () => {
     const response = await api.get('/api/settings', {
@@ -177,17 +205,19 @@ export const publicApi = {
 export const adminApi = {
   // ---- Media Management ----
 
-  uploadMedia: async (file, title, subtitle = '', type = 'video', onProgress, artistId, albumId) => {
+  uploadMedia: async (file, title, subtitle = '', type = 'video', onProgress, artistId, albumId, language = 'en', contentGroupId = null) => {
     const token = await getIdToken();
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
     formData.append('subtitle', subtitle);
     formData.append('type', type);
+    formData.append('language', language);
     if (artistId) formData.append('artistId', artistId);
     if (albumId) formData.append('albumId', albumId);
+    if (contentGroupId) formData.append('contentGroupId', contentGroupId);
 
-    console.log('[API] Upload:', { fileName: file.name, fileType: file.type, title, type, artistId, albumId });
+    console.log('[API] Upload:', { fileName: file.name, fileType: file.type, title, type, language, artistId, albumId, contentGroupId });
 
     const response = await api.post('/admin/media', formData, {
       headers: {

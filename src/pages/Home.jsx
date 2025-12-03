@@ -1,17 +1,19 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Play, Clock, TrendingUp, RotateCcw, Video, Music, Upload } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Play, Clock, TrendingUp, RotateCcw, Video, Music, Upload, Globe } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { publicApi } from '../services/api';
 import { usePlayerStore, useAuthStore } from '../store';
-import { MediaGrid } from '../components/media';
+import { MediaGrid, LanguageCardGrid, CompactLanguageBadges } from '../components/media';
 import { Button } from '../components/ui/button';
 import { cn, generateGradient, formatDuration } from '../lib/utils';
 
 export default function Home() {
+  const navigate = useNavigate();
   const { user, isAuthenticated, isAdminUser } = useAuthStore();
   const { playTrack, history, getResumeItems, playbackProgress } = usePlayerStore();
+  const [selectedLanguage, setSelectedLanguage] = useState(null);
 
   // Get items that can be resumed
   const resumeItems = useMemo(() => getResumeItems(), [getResumeItems, playbackProgress, history]);
@@ -69,19 +71,46 @@ export default function Home() {
       };
     });
   }, [rawMedia, albumMap]);
+
+  // Extract available languages from media
+  const availableLanguages = useMemo(() => {
+    const languageCounts = {};
+    allMedia.forEach(item => {
+      const lang = item.language || 'en';
+      languageCounts[lang] = (languageCounts[lang] || 0) + 1;
+    });
+    
+    // Sort by count (most content first)
+    return Object.entries(languageCounts)
+      .map(([code, count]) => ({ code, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [allMedia]);
+
+  // Filter media by selected language
+  const filteredMedia = useMemo(() => {
+    if (!selectedLanguage) return allMedia;
+    return allMedia.filter(item => (item.language || 'en') === selectedLanguage);
+  }, [allMedia, selectedLanguage]);
   
-  // Filter videos and audio client-side
+  // Filter videos and audio client-side (from filtered media)
   const videos = useMemo(() => 
-    allMedia.filter(item => item.type === 'video').slice(0, 12), 
-    [allMedia]
+    filteredMedia.filter(item => item.type === 'video').slice(0, 12), 
+    [filteredMedia]
   );
   
   const audio = useMemo(() => 
-    allMedia.filter(item => item.type === 'audio').slice(0, 12), 
-    [allMedia]
+    filteredMedia.filter(item => item.type === 'audio').slice(0, 12), 
+    [filteredMedia]
   );
   
   const recentlyPlayed = history.slice(0, 6);
+
+  // Handle language selection from cards
+  const handleLanguageSelect = (langCode) => {
+    setSelectedLanguage(langCode);
+    // Scroll to content section
+    document.getElementById('content-sections')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   // Get greeting based on time
   const getGreeting = () => {
@@ -210,7 +239,31 @@ export default function Home() {
       </div>
 
       {/* Content sections */}
-      <div className="px-6 space-y-10 pb-8">
+      <div id="content-sections" className="px-6 space-y-10 pb-8">
+        {/* Browse by Language section */}
+        {availableLanguages.length > 1 && (
+          <LanguageCardGrid
+            languages={availableLanguages}
+            onLanguageSelect={handleLanguageSelect}
+            title="Browse by Language"
+          />
+        )}
+
+        {/* Language filter badges (when a language is selected) */}
+        {selectedLanguage && availableLanguages.length > 1 && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold">Filtering by Language</h2>
+            </div>
+            <CompactLanguageBadges
+              languages={availableLanguages}
+              selectedLanguage={selectedLanguage}
+              onLanguageSelect={setSelectedLanguage}
+            />
+          </section>
+        )}
+
         {/* Continue Watching/Listening section */}
         {resumeItems.length > 0 && (
           <section>
@@ -345,23 +398,45 @@ export default function Home() {
         <section>
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-2xl font-bold">Browse All</h2>
+            <h2 className="text-2xl font-bold">
+              {selectedLanguage ? `Browse All (${selectedLanguage.toUpperCase()})` : 'Browse All'}
+            </h2>
+            {selectedLanguage && (
+              <button
+                onClick={() => setSelectedLanguage(null)}
+                className="text-sm text-muted-foreground hover:text-primary ml-2"
+              >
+                Clear filter
+              </button>
+            )}
           </div>
           <MediaGrid
-            media={allMedia}
+            media={filteredMedia}
             isLoading={mediaLoading}
             emptyMessage={
               <div className="text-center py-12">
                 <Upload className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No media available yet</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  {selectedLanguage ? 'No content in this language' : 'No media available yet'}
+                </h3>
                 <p className="text-muted-foreground mb-4">
-                  {isAdminUser ? (
+                  {selectedLanguage ? (
+                    <>
+                      No content available in this language yet.
+                      <button
+                        onClick={() => setSelectedLanguage(null)}
+                        className="text-primary hover:underline ml-1"
+                      >
+                        View all content
+                      </button>
+                    </>
+                  ) : isAdminUser ? (
                     'Start by uploading your first video or audio file'
                   ) : (
                     'Content is being prepared. Check back soon!'
                   )}
                 </p>
-                {isAdminUser && (
+                {isAdminUser && !selectedLanguage && (
                   <Button asChild>
                     <Link to="/admin/upload">
                       <Upload className="h-4 w-4 mr-2" />
