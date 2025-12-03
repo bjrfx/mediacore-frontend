@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, MoreHorizontal, Heart, ListPlus, Video, Music, Download, Trash2 } from 'lucide-react';
-import { cn, generateGradient } from '../../lib/utils';
+import { Play, Pause, MoreHorizontal, Heart, ListPlus, Download, Trash2 } from 'lucide-react';
+import { cn } from '../../lib/utils';
 import usePlayerStore from '../../store/playerStore';
 import useLibraryStore from '../../store/libraryStore';
 import useUIStore from '../../store/uiStore';
@@ -9,6 +9,7 @@ import useDownloadStore from '../../store/downloadStore';
 import useAuthStore from '../../store/authStore';
 import { Button } from '../ui/button';
 import DownloadButton from '../ui/DownloadButton';
+import ThumbnailFallback from './ThumbnailFallback';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,12 +65,7 @@ export default function MediaCard({ media, queue = [], index = 0, size = 'medium
     >
       {/* Thumbnail */}
       <div className="media-card-image">
-        <div
-          className={cn(
-            'w-full h-full',
-            !media.thumbnail && `bg-gradient-to-br ${generateGradient(media.id)}`
-          )}
-        >
+        <div className="w-full h-full">
           {media.thumbnail ? (
             <img
               src={media.thumbnail}
@@ -77,13 +73,12 @@ export default function MediaCard({ media, queue = [], index = 0, size = 'medium
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              {isVideo ? (
-                <Video className="w-12 h-12 text-white/50" />
-              ) : (
-                <Music className="w-12 h-12 text-white/50" />
-              )}
-            </div>
+            <ThumbnailFallback
+              title={media.title}
+              id={media.id}
+              isVideo={isVideo}
+              size="medium"
+            />
           )}
         </div>
 

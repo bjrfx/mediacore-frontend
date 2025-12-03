@@ -108,6 +108,32 @@ export function generateGradient(seed) {
   return gradients[index];
 }
 
+// Get initials from title for fallback thumbnail
+export function getTitleInitials(title, maxChars = 2) {
+  if (!title) return '?';
+  
+  const words = title.trim().split(/\s+/);
+  if (words.length === 1) {
+    // Single word - take first 2 characters
+    return title.slice(0, maxChars).toUpperCase();
+  }
+  
+  // Multiple words - take first letter of first 2 words
+  return words
+    .slice(0, maxChars)
+    .map(word => word[0])
+    .join('')
+    .toUpperCase();
+}
+
+// Get a display-friendly short title for fallback thumbnail
+export function getShortTitle(title, maxLength = 20) {
+  if (!title) return '';
+  const trimmed = title.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  return trimmed.slice(0, maxLength - 3) + '...';
+}
+
 export function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {

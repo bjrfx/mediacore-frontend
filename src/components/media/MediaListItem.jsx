@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Play, MoreHorizontal, Heart, ListPlus, Video, Music, GripVertical } from 'lucide-react';
-import { cn, formatDuration, generateGradient, formatRelativeTime } from '../../lib/utils';
+import { Play, MoreHorizontal, Heart, ListPlus, GripVertical } from 'lucide-react';
+import { cn, formatDuration, formatRelativeTime } from '../../lib/utils';
 import { usePlayerStore, useLibraryStore, useUIStore } from '../../store';
 import { Button } from '../ui/button';
+import ThumbnailFallback from './ThumbnailFallback';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,12 +65,7 @@ export default function MediaListItem({ media, queue = [], index = 0, showIndex 
       </div>
 
       {/* Thumbnail */}
-      <div
-        className={cn(
-          'w-10 h-10 rounded shrink-0 overflow-hidden',
-          !media.thumbnail && `bg-gradient-to-br ${generateGradient(media.id)}`
-        )}
-      >
+      <div className="w-10 h-10 rounded shrink-0 overflow-hidden">
         {media.thumbnail ? (
           <img
             src={media.thumbnail}
@@ -77,13 +73,12 @@ export default function MediaListItem({ media, queue = [], index = 0, showIndex 
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            {isVideo ? (
-              <Video className="w-4 h-4 text-white/50" />
-            ) : (
-              <Music className="w-4 h-4 text-white/50" />
-            )}
-          </div>
+          <ThumbnailFallback
+            title={media.title}
+            id={media.id}
+            isVideo={isVideo}
+            size="small"
+          />
         )}
       </div>
 

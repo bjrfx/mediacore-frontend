@@ -29,13 +29,14 @@ import {
   FastForward,
   WifiOff,
 } from 'lucide-react';
-import { cn, formatDuration, generateGradient } from '../../lib/utils';
+import { cn, formatDuration } from '../../lib/utils';
 import { usePlayerStore, useLibraryStore, useDownloadStore } from '../../store';
 import useStatsStore from '../../store/statsStore';
 import { publicApi } from '../../services/api';
 import { Button } from '../ui/button';
 import { Slider } from '../ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../ui/tooltip';
+import ThumbnailFallback from '../media/ThumbnailFallback';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -574,12 +575,7 @@ function MiniPlayer() {
 
           {/* Audio mode - show album art */}
           {(!isVideoMode || !isVideo) && (
-            <div
-              className={cn(
-                'w-64 h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 rounded-xl shadow-2xl overflow-hidden',
-                !currentTrack.thumbnail && `bg-gradient-to-br ${generateGradient(currentTrack.id)}`
-              )}
-            >
+            <div className="w-64 h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 rounded-xl shadow-2xl overflow-hidden">
               {currentTrack.thumbnail ? (
                 <img
                   src={currentTrack.thumbnail}
@@ -587,13 +583,12 @@ function MiniPlayer() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  {isVideo ? (
-                    <Film className="w-24 h-24 text-white/50" />
-                  ) : (
-                    <Music className="w-24 h-24 text-white/50" />
-                  )}
-                </div>
+                <ThumbnailFallback
+                  title={currentTrack.title}
+                  id={currentTrack.id}
+                  isVideo={isVideo}
+                  size="large"
+                />
               )}
             </div>
           )}
@@ -1090,12 +1085,7 @@ function MiniPlayer() {
         className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
         onClick={() => setExpanded(true)}
       >
-        <div
-          className={cn(
-            'w-14 h-14 rounded-md overflow-hidden shrink-0 relative',
-            !currentTrack.thumbnail && `bg-gradient-to-br ${generateGradient(currentTrack.id)}`
-          )}
-        >
+        <div className="w-14 h-14 rounded-md overflow-hidden shrink-0 relative">
           {currentTrack.thumbnail ? (
             <img
               src={currentTrack.thumbnail}
@@ -1103,13 +1093,12 @@ function MiniPlayer() {
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              {isVideo ? (
-                <Film className="w-6 h-6 text-white/50" />
-              ) : (
-                <Music className="w-6 h-6 text-white/50" />
-              )}
-            </div>
+            <ThumbnailFallback
+              title={currentTrack.title}
+              id={currentTrack.id}
+              isVideo={isVideo}
+              size="small"
+            />
           )}
           {/* Video indicator */}
           {isVideo && (

@@ -4,8 +4,6 @@ import {
   Download, 
   Trash2, 
   Play, 
-  Film, 
-  Music, 
   HardDrive,
   AlertCircle,
   RefreshCw,
@@ -14,10 +12,11 @@ import {
   Loader2,
   FolderOpen,
 } from 'lucide-react';
-import { cn, formatDuration } from '../lib/utils';
+import { cn } from '../lib/utils';
 import useDownloadStore, { DownloadStatus } from '../store/downloadStore';
 import { usePlayerStore, useAuthStore } from '../store';
 import { Button } from '../components/ui/button';
+import { ThumbnailFallback } from '../components/media';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -112,13 +111,12 @@ function DownloadItem({ download, onPlay, onRemove, onRetry }) {
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-muted flex items-center justify-center">
-            {isVideo ? (
-              <Film className="w-6 h-6 text-muted-foreground" />
-            ) : (
-              <Music className="w-6 h-6 text-muted-foreground" />
-            )}
-          </div>
+          <ThumbnailFallback
+            title={media?.title || 'Unknown'}
+            id={media?.id || '0'}
+            isVideo={isVideo}
+            size="small"
+          />
         )}
         
         {/* Play overlay */}
