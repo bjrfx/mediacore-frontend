@@ -546,7 +546,7 @@ export default function AdminUpload() {
                 >
                   <input
                     type="file"
-                    accept="video/mp4,audio/mp3,audio/mpeg"
+                    accept="video/mp4,audio/mp3,audio/mpeg,audio/m4a,audio/x-m4a,audio/mp4"
                     onChange={handleFileDrop}
                     className="hidden"
                     id="file-upload"
@@ -890,7 +890,7 @@ export default function AdminUpload() {
               >
                 <input
                   type="file"
-                  accept="video/mp4,audio/mp3,audio/mpeg"
+                  accept="video/mp4,audio/mp3,audio/mpeg,audio/m4a,audio/x-m4a,audio/mp4"
                   onChange={(e) => handleMultiFileDrop(e)}
                   className="hidden"
                   id="multi-file-upload"
@@ -927,7 +927,7 @@ export default function AdminUpload() {
                     </Button>
                     <input
                       type="file"
-                      accept="video/mp4,audio/mp3,audio/mpeg"
+                      accept="video/mp4,audio/mp3,audio/mpeg,audio/m4a,audio/x-m4a,audio/mp4"
                       onChange={handleAddLanguageVersion}
                       className="hidden"
                       id="add-language-file"

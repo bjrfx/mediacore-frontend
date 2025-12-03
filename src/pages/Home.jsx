@@ -172,7 +172,7 @@ export default function Home() {
                 />
               ) : (
                 <ThumbnailFallback
-                  title={featuredItem.title}
+                  // title={featuredItem.title}
                   id={featuredItem.id}
                   isVideo={featuredItem.type === 'video'}
                   size="large"
