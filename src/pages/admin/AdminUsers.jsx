@@ -897,7 +897,11 @@ export default function AdminUsers() {
                       Created
                     </label>
                     <p className="mt-1 text-sm">
-                      {formatDate(selectedUser.metadata?.creationTime)}
+                      {formatDate(
+                        selectedUser.metadata?.creationTime || 
+                        selectedUser.createdAt || 
+                        selectedUser.creationTime
+                      )}
                     </p>
                   </div>
                   <div>
@@ -905,8 +909,11 @@ export default function AdminUsers() {
                       Last Sign In
                     </label>
                     <p className="mt-1 text-sm">
-                      {formatDate(selectedUser.metadata?.lastSignInTime) ||
-                        'Never'}
+                      {formatDate(
+                        selectedUser.metadata?.lastSignInTime || 
+                        selectedUser.lastSignInTime || 
+                        selectedUser.lastLoginAt
+                      )}
                     </p>
                   </div>
                 </div>

@@ -22,7 +22,13 @@ export function formatDuration(seconds) {
 export const formatTime = formatDuration;
 
 export function formatDate(dateString) {
+  if (!dateString) return 'Never';
+  
   const date = new Date(dateString);
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) return 'Never';
+  
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
