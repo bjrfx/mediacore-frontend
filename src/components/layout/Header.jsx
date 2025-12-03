@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Settings, Shield } from 'lucide-react';
-import { useUIStore, useAuthStore, useSubscriptionStore } from '../../store';
+import { Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Settings, Shield, Download, ExternalLink, Smartphone, MonitorSmartphone } from 'lucide-react';
+import { useUIStore, useAuthStore, useSubscriptionStore, usePWAStore } from '../../store';
 import { signInWithGoogle, logOut } from '../../config/firebase';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -13,6 +13,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/tooltip';
 import SubscriptionBadge from '../subscription/SubscriptionBadge';
 import { SUBSCRIPTION_TIERS } from '../../config/subscription';
 
@@ -21,6 +27,53 @@ export default function Header() {
   const { toggleMobileSidebar } = useUIStore();
   const { user, isAuthenticated, isAdminUser } = useAuthStore();
   const { tier } = useSubscriptionStore();
+  const { canInstall, isInstalled, installApp } = usePWAStore();
+
+  // Check if running in standalone mode (already opened as PWA)
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    // Check standalone mode
+    const standalone = window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone ||
+      document.referrer.includes('android-app://');
+    setIsStandalone(standalone);
+
+    // Check iOS
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    setIsIOS(iOS);
+  }, []);
+
+  const handleInstallOrOpen = async () => {
+    if (isInstalled && !isStandalone) {
+      // App is installed but opened in browser - reload to try open in app
+      window.location.reload();
+    } else if (canInstall) {
+      // Trigger install prompt
+      await installApp();
+    } else if (isIOS) {
+      // Show iOS instructions - trigger the InstallPrompt banner
+      window.dispatchEvent(new CustomEvent('show-ios-install'));
+    }
+  };
+
+  // Determine button state and tooltip
+  const getPWAButtonInfo = () => {
+    if (isStandalone) {
+      return null; // Already in app, hide button
+    }
+    if (isInstalled) {
+      return { icon: ExternalLink, tooltip: 'Open in App', showDot: false };
+    }
+    if (canInstall) {
+      return { icon: Download, tooltip: 'Install App', showDot: true };
+    }
+    // Not installable (incognito, iOS, or not supported) - still show button
+    return { icon: MonitorSmartphone, tooltip: isIOS ? 'Add to Home Screen' : 'Get the App', showDot: false };
+  };
+
+  const pwaButton = getPWAButtonInfo();
 
   const handleSignIn = async () => {
     try {
@@ -75,9 +128,34 @@ export default function Header() {
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         {isAuthenticated ? (
           <>
+            {/* PWA Install/Open Button */}
+            {pwaButton && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full relative"
+                      onClick={handleInstallOrOpen}
+                    >
+                      <pwaButton.icon className="h-5 w-5" />
+                      {/* Install indicator dot */}
+                      {pwaButton.showDot && (
+                        <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{pwaButton.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
             {/* Notifications */}
             <Button variant="ghost" size="icon" className="rounded-full">
               <Bell className="h-5 w-5" />

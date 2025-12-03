@@ -67,25 +67,23 @@ export function LanguageCard({
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] bg-[length:20px_20px]" />
       
       {/* Content */}
-      <div className="absolute inset-0 p-4 flex flex-col justify-between">
+      <div className="absolute inset-0 p-3 sm:p-4 flex flex-col justify-between">
         {/* Icon */}
-        <div className="text-3xl md:text-4xl">
+        <div className="text-2xl sm:text-3xl md:text-4xl">
           {config.icon}
         </div>
         
         {/* Text */}
         <div>
-          <h3 className="text-white text-lg md:text-xl font-bold">
+          <h3 className="text-white text-base sm:text-lg md:text-xl font-bold leading-tight">
             {config.name}
           </h3>
-          <p className="text-white/80 text-sm font-medium">
+          <p className="text-white/80 text-xs sm:text-sm font-medium">
             {config.nativeName}
           </p>
-          {contentCount > 0 && (
-            <p className="text-white/60 text-xs mt-1">
-              {contentCount} {contentCount === 1 ? 'item' : 'items'}
-            </p>
-          )}
+          <p className="text-white/70 text-[10px] sm:text-xs mt-0.5 sm:mt-1 font-medium">
+            {contentCount > 0 ? `${contentCount} ${contentCount === 1 ? 'track' : 'tracks'}` : 'No tracks yet'}
+          </p>
         </div>
       </div>
 

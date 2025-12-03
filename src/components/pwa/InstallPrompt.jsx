@@ -50,12 +50,21 @@ export default function InstallPrompt() {
       setShowBanner(false);
     };
 
+    // Listen for manual iOS install trigger from header button
+    const handleShowIOSInstall = () => {
+      if (iOS && !standalone) {
+        setShowBanner(true);
+      }
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
     window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('show-ios-install', handleShowIOSInstall);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('show-ios-install', handleShowIOSInstall);
     };
   }, [setDeferredPrompt, setInstalled]);
 
