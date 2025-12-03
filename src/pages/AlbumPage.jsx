@@ -52,8 +52,19 @@ export default function AlbumPage() {
   });
 
   const album = albumData?.data;
-  const artist = album?.artist; // Backend includes artist info in album response
-  const albumTracks = useMemo(() => tracksData?.data || [], [tracksData?.data]);
+  const artist = album?.artist;
+  
+  // Enrich tracks with artist and album info for the player
+  const albumTracks = useMemo(() => {
+    const tracks = tracksData?.data || [];
+    return tracks.map(track => ({
+      ...track,
+      artistName: artist?.name || "",
+      artistId: artist?.id || album?.artistId,
+      albumTitle: album?.title || "",
+      albumCover: album?.coverImage || "",
+    }));
+  }, [tracksData?.data, artist, album]);
 
   // Calculate total duration
   const totalDuration = useMemo(() => {

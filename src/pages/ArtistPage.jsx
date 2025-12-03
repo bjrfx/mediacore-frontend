@@ -69,7 +69,19 @@ export default function ArtistPage() {
     enabled: artistAlbums.length > 0,
   });
 
-  const artistMedia = useMemo(() => allAlbumMedia || [], [allAlbumMedia]);
+  const artistMedia = useMemo(() => {
+    const tracks = allAlbumMedia || [];
+    return tracks.map(track => {
+      const trackAlbum = artistAlbums.find(a => a.id === track.albumId);
+      return {
+        ...track,
+        artistName: artist?.name || "",
+        artistId: artist?.id,
+        albumTitle: trackAlbum?.title || "",
+        albumCover: trackAlbum?.coverImage || "",
+      };
+    });
+  }, [allAlbumMedia, artist, artistAlbums]);
 
   // Calculate stats
   const stats = useMemo(() => {

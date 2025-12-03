@@ -654,7 +654,7 @@ function MiniPlayer() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <h2 className="text-xl md:text-2xl font-bold truncate">{currentTrack.title}</h2>
-                        <p className="text-muted-foreground truncate">{currentTrack.subtitle || 'Unknown artist'}</p>
+                        <p className="text-muted-foreground truncate">{currentTrack.artistName || currentTrack.subtitle || 'Unknown artist'}</p>
                       </div>
                       <Button
                         variant="ghost"
@@ -1033,7 +1033,7 @@ function MiniPlayer() {
             {currentTrack.title}
           </p>
           <p className="text-xs text-muted-foreground truncate">
-            {currentTrack.subtitle || 'Unknown'}
+            {currentTrack.artistName || currentTrack.subtitle || 'Unknown'}
           </p>
         </div>
         <Button

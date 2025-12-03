@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Play, Clock, TrendingUp, RotateCcw, Video, Music, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -22,7 +22,53 @@ export default function Home() {
     queryFn: () => publicApi.getMedia({ limit: 50 }),
   });
 
-  const allMedia = mediaData?.data || [];
+  const rawMedia = mediaData?.data || [];
+  
+  // Get unique album IDs from media
+  const albumIds = useMemo(() => {
+    const ids = [...new Set(rawMedia.filter(m => m.albumId).map(m => m.albumId))];
+    return ids;
+  }, [rawMedia]);
+
+  // Fetch album details to get artist info
+  const albumQueries = useQueries({
+    queries: albumIds.map(albumId => ({
+      queryKey: ['album', albumId],
+      queryFn: () => publicApi.getAlbumById(albumId),
+      staleTime: 5 * 60 * 1000,
+      enabled: !!albumId,
+    })),
+  });
+
+  // Build album map with artist info
+  const albumMap = useMemo(() => {
+    const map = {};
+    albumQueries.forEach(query => {
+      if (query.data?.data) {
+        const album = query.data.data;
+        map[album.id] = {
+          title: album.title,
+          coverImage: album.coverImage,
+          artistName: album.artist?.name || '',
+          artistId: album.artist?.id || album.artistId,
+        };
+      }
+    });
+    return map;
+  }, [albumQueries]);
+
+  // Enrich media with artist info from albums
+  const allMedia = useMemo(() => {
+    return rawMedia.map(item => {
+      const albumInfo = item.albumId ? albumMap[item.albumId] : null;
+      return {
+        ...item,
+        artistName: albumInfo?.artistName || item.subtitle || '',
+        albumTitle: albumInfo?.title || '',
+        albumCover: albumInfo?.coverImage || '',
+      };
+    });
+  }, [rawMedia, albumMap]);
   
   // Filter videos and audio client-side
   const videos = useMemo(() => 

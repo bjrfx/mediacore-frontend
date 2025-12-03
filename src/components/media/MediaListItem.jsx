@@ -98,7 +98,7 @@ export default function MediaListItem({ media, queue = [], index = 0, showIndex 
           {media.title}
         </p>
         <p className="text-xs text-muted-foreground truncate">
-          {media.subtitle || 'Unknown artist'}
+          {media.artistName || media.subtitle || 'Unknown artist'}
         </p>
       </div>
 

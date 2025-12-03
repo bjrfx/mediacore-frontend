@@ -157,7 +157,7 @@ export default function MediaCard({ media, queue = [], index = 0, size = 'medium
             {media.title}
           </h3>
           <p className="text-xs text-muted-foreground truncate mt-1">
-            {media.subtitle || 'Unknown artist'}
+            {media.artistName || media.subtitle || 'Unknown artist'}
           </p>
         </div>
 
