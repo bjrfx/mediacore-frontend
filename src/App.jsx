@@ -31,6 +31,7 @@ const ArtistPage = lazy(() => import('./pages/ArtistPage'));
 const AlbumPage = lazy(() => import('./pages/AlbumPage'));
 const ArtistsPage = lazy(() => import('./pages/ArtistsPage'));
 const Downloads = lazy(() => import('./pages/Downloads'));
+const Profile = lazy(() => import('./pages/Profile'));
 
 
 // Admin pages
@@ -102,6 +103,7 @@ function AppRoutes() {
             <Route path="downloads" element={<Downloads />} />
             <Route path="history" element={<History />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="profile" element={<Profile />} />
             <Route path="play/:id" element={<MediaPlayer />} />
           </Route>
 

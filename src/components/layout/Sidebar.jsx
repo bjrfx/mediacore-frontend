@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Users,
   Download,
+  User,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUIStore, useAuthStore, useLibraryStore } from '../../store';
@@ -191,7 +192,11 @@ function Sidebar() {
       )}
 
       {/* Settings at bottom */}
-      <div className="mt-auto px-2 py-4">
+      <div className="mt-auto px-2 py-4 space-y-1">
+        <NavItem
+          item={{ icon: User, label: 'Profile', path: '/profile' }}
+          collapsed={collapsed}
+        />
         <NavItem
           item={{ icon: Settings, label: 'Settings', path: '/settings' }}
           collapsed={collapsed}
