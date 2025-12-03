@@ -1,16 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Play, Clock, TrendingUp, RotateCcw, Video, Music, Upload, Globe } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Play, TrendingUp, RotateCcw, Video, Music, Upload, Globe, Sparkles, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { publicApi } from '../services/api';
 import { usePlayerStore, useAuthStore } from '../store';
-import { MediaGrid, LanguageCardGrid, CompactLanguageBadges } from '../components/media';
+import { MediaGrid, LanguageCardGrid, CompactLanguageBadges, ThumbnailFallback } from '../components/media';
 import { Button } from '../components/ui/button';
-import { cn, generateGradient, formatDuration } from '../lib/utils';
+import { cn, formatDuration } from '../lib/utils';
 
 export default function Home() {
-  const navigate = useNavigate();
   const { user, isAuthenticated, isAdminUser } = useAuthStore();
   const { playTrack, history, getResumeItems, playbackProgress } = usePlayerStore();
   const [selectedLanguage, setSelectedLanguage] = useState(null);
@@ -135,111 +134,169 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-full">
-      {/* Hero Section */}
+    <div className="min-h-full pb-8">
+      {/* Hero Section with Greeting */}
       <div className="relative overflow-hidden">
         {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-spotify opacity-50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-background/50 to-background" />
         
-        <div className="relative px-6 pt-4 pb-8">
+        <div className="relative px-6 pt-6 pb-4">
           {/* Greeting */}
           <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-3xl md:text-4xl font-bold mb-6"
+            className="text-3xl md:text-4xl font-bold"
           >
             {getGreeting()}{isAuthenticated && user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}
           </motion.h1>
-
-          {/* Quick access grid */}
-          {recentlyPlayed.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
-              {recentlyPlayed.map((item, index) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  onClick={() => playTrack(item, recentlyPlayed)}
-                  className="group flex items-center gap-4 bg-white/10 hover:bg-white/20 rounded-md overflow-hidden cursor-pointer transition-colors"
-                >
-                  <div
-                    className={cn(
-                      'w-14 h-14 shrink-0',
-                      !item.thumbnail && `bg-gradient-to-br ${generateGradient(item.id)}`
-                    )}
-                  >
-                    {item.thumbnail ? (
-                      <img
-                        src={item.thumbnail}
-                        alt={item.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Play className="w-6 h-6 text-white/50" />
-                      </div>
-                    )}
-                  </div>
-                  <span className="font-semibold text-sm truncate pr-4">
-                    {item.title}
-                  </span>
-                  <Button
-                    variant="spotify"
-                    size="icon"
-                    className="ml-auto mr-4 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                  >
-                    <Play className="h-5 w-5 ml-0.5" />
-                  </Button>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {/* Featured item (if no recent plays) */}
-          {recentlyPlayed.length === 0 && featuredItem && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative rounded-xl overflow-hidden mb-8"
-            >
-              <div
-                className={cn(
-                  'aspect-[3/1] md:aspect-[4/1]',
-                  !featuredItem.thumbnail && `bg-gradient-to-br ${generateGradient(featuredItem.id)}`
-                )}
-              >
-                {featuredItem.thumbnail && (
-                  <img
-                    src={featuredItem.thumbnail}
-                    alt={featuredItem.title}
-                    className="w-full h-full object-cover"
-                  />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <span className="text-sm font-medium text-primary mb-2 block">
-                  Featured
-                </span>
-                <h2 className="text-2xl md:text-4xl font-bold mb-2">
-                  {featuredItem.title}
-                </h2>
-                <p className="text-muted-foreground mb-4 line-clamp-2">
-                  {featuredItem.subtitle || 'Start exploring amazing content'}
-                </p>
-                <Button variant="spotify" size="lg" onClick={handlePlayAll}>
-                  <Play className="h-5 w-5 mr-2" />
-                  Play All
-                </Button>
-              </div>
-            </motion.div>
-          )}
         </div>
       </div>
 
+      {/* Featured Card - Always visible when content exists */}
+      {featuredItem && (
+        <div className="px-6 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="relative rounded-2xl overflow-hidden shadow-2xl cursor-pointer group"
+            onClick={() => playTrack(featuredItem, allMedia)}
+          >
+            {/* Background */}
+            <div className="aspect-[2.5/1] md:aspect-[3/1] lg:aspect-[4/1] relative">
+              {featuredItem.thumbnail ? (
+                <img
+                  src={featuredItem.thumbnail}
+                  alt={featuredItem.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <ThumbnailFallback
+                  title={featuredItem.title}
+                  id={featuredItem.id}
+                  isVideo={featuredItem.type === 'video'}
+                  size="large"
+                />
+              )}
+              
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            </div>
+
+            {/* Content */}
+            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
+              {/* Featured badge */}
+              <motion.span 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/20 backdrop-blur-sm px-3 py-1 rounded-full w-fit mb-3"
+              >
+                <Sparkles className="h-3 w-3" />
+                FEATURED
+              </motion.span>
+
+              {/* Title */}
+              <motion.h2 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-2 line-clamp-2"
+              >
+                {featuredItem.title}
+              </motion.h2>
+
+              {/* Subtitle / Artist */}
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="text-white/70 text-sm md:text-base mb-4 line-clamp-1"
+              >
+                {featuredItem.artistName || featuredItem.subtitle || 'Start exploring amazing content'}
+              </motion.p>
+
+              {/* Actions */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="flex items-center gap-3"
+              >
+                <Button 
+                  variant="spotify" 
+                  size="lg" 
+                  className="shadow-lg"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePlayAll();
+                  }}
+                >
+                  <Play className="h-5 w-5 mr-2" fill="currentColor" />
+                  Play All
+                </Button>
+                
+                {/* Media type badge */}
+                <span className={cn(
+                  'px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm',
+                  featuredItem.type === 'video' 
+                    ? 'bg-blue-500/30 text-blue-200' 
+                    : 'bg-green-500/30 text-green-200'
+                )}>
+                  {featuredItem.type === 'video' ? 'VIDEO' : 'AUDIO'}
+                </span>
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Quick Access - Recently Played (compact horizontal) */}
+      {recentlyPlayed.length > 0 && (
+        <div className="px-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            {recentlyPlayed.map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => playTrack(item, recentlyPlayed)}
+                className="group flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-lg overflow-hidden cursor-pointer transition-all duration-200"
+              >
+                <div className="w-12 h-12 shrink-0">
+                  {item.thumbnail ? (
+                    <img
+                      src={item.thumbnail}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <ThumbnailFallback
+                      title={item.title}
+                      id={item.id}
+                      isVideo={item.type === 'video'}
+                      size="small"
+                    />
+                  )}
+                </div>
+                <span className="font-medium text-sm truncate pr-2 flex-1">
+                  {item.title}
+                </span>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+                  <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center shadow-lg">
+                    <Play className="h-4 w-4 text-primary-foreground ml-0.5" fill="currentColor" />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Content sections */}
-      <div id="content-sections" className="px-6 space-y-10 pb-8">
+      <div id="content-sections" className="px-6 space-y-10">
         {/* Browse by Language section */}
         {availableLanguages.length > 1 && (
           <LanguageCardGrid
@@ -267,12 +324,20 @@ export default function Home() {
         {/* Continue Watching/Listening section */}
         {resumeItems.length > 0 && (
           <section>
-            <div className="flex items-center gap-2 mb-4">
-              <RotateCcw className="h-5 w-5 text-primary" />
-              <h2 className="text-2xl font-bold">Continue Watching</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5 text-primary" />
+                <h2 className="text-2xl font-bold">Continue Watching</h2>
+              </div>
+              <Link 
+                to="/history" 
+                className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+              >
+                View all <ChevronRight className="h-4 w-4" />
+              </Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {resumeItems.map((item, index) => (
+              {resumeItems.slice(0, 5).map((item, index) => (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -282,26 +347,20 @@ export default function Home() {
                   className="group relative cursor-pointer"
                 >
                   {/* Thumbnail */}
-                  <div
-                    className={cn(
-                      'aspect-video rounded-lg overflow-hidden mb-2 relative',
-                      !item.thumbnail && `bg-gradient-to-br ${generateGradient(item.id)}`
-                    )}
-                  >
+                  <div className="aspect-video rounded-lg overflow-hidden mb-2 relative">
                     {item.thumbnail ? (
                       <img
                         src={item.thumbnail}
                         alt={item.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        {item.type === 'video' ? (
-                          <Video className="w-12 h-12 text-white/50" />
-                        ) : (
-                          <Music className="w-12 h-12 text-white/50" />
-                        )}
-                      </div>
+                      <ThumbnailFallback
+                        title={item.title}
+                        id={item.id}
+                        isVideo={item.type === 'video'}
+                        size="medium"
+                      />
                     )}
                     
                     {/* Progress bar overlay */}
@@ -314,8 +373,8 @@ export default function Home() {
 
                     {/* Play button overlay */}
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="spotify" size="icon" className="h-12 w-12">
-                        <Play className="h-6 w-6 ml-0.5" />
+                      <Button variant="spotify" size="icon" className="h-12 w-12 shadow-lg">
+                        <Play className="h-6 w-6 ml-0.5" fill="currentColor" />
                       </Button>
                     </div>
 
@@ -339,115 +398,110 @@ export default function Home() {
           </section>
         )}
 
-        {/* Recently played section */}
-        {recentlyPlayed.length > 0 && (
+        {/* Videos section */}
+        {(videos.length > 0 || mediaLoading) && (
           <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              <h2 className="text-2xl font-bold">Recently Played</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Video className="h-5 w-5 text-blue-400" />
+                <h2 className="text-2xl font-bold">Videos</h2>
+              </div>
+              {videos.length > 6 && (
+                <Link 
+                  to="/search?type=video" 
+                  className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+                >
+                  Show all <ChevronRight className="h-4 w-4" />
+                </Link>
+              )}
             </div>
-            <MediaGrid media={recentlyPlayed} />
+            <MediaGrid
+              media={videos}
+              isLoading={mediaLoading}
+              emptyMessage={null}
+            />
           </section>
         )}
 
-        {/* Videos section */}
-        <section>
-          <MediaGrid
-            media={videos}
-            isLoading={mediaLoading}
-            title="Videos"
-            emptyMessage={
-              <div className="text-center py-8">
-                <Video className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground mb-1">No videos available</p>
-                <p className="text-sm text-muted-foreground/70">
-                  {isAdminUser ? (
-                    <>Videos will appear here once uploaded. <Link to="/admin/upload" className="text-primary hover:underline">Upload now</Link></>
-                  ) : (
-                    'Check back later for new video content'
-                  )}
-                </p>
-              </div>
-            }
-          />
-        </section>
-
         {/* Audio section */}
-        <section>
-          <MediaGrid
-            media={audio}
-            isLoading={mediaLoading}
-            title="Audio"
-            emptyMessage={
-              <div className="text-center py-8">
-                <Music className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground mb-1">No audio available</p>
-                <p className="text-sm text-muted-foreground/70">
-                  {isAdminUser ? (
-                    <>Audio tracks will appear here once uploaded. <Link to="/admin/upload" className="text-primary hover:underline">Upload now</Link></>
-                  ) : (
-                    'Check back later for new audio content'
-                  )}
-                </p>
+        {(audio.length > 0 || mediaLoading) && (
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Music className="h-5 w-5 text-green-400" />
+                <h2 className="text-2xl font-bold">Audio</h2>
               </div>
-            }
-          />
-        </section>
+              {audio.length > 6 && (
+                <Link 
+                  to="/search?type=audio" 
+                  className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+                >
+                  Show all <ChevronRight className="h-4 w-4" />
+                </Link>
+              )}
+            </div>
+            <MediaGrid
+              media={audio}
+              isLoading={mediaLoading}
+              emptyMessage={null}
+            />
+          </section>
+        )}
 
-        {/* All media section */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-2xl font-bold">
-              {selectedLanguage ? `Browse All (${selectedLanguage.toUpperCase()})` : 'Browse All'}
-            </h2>
-            {selectedLanguage && (
-              <button
-                onClick={() => setSelectedLanguage(null)}
-                className="text-sm text-muted-foreground hover:text-primary ml-2"
-              >
-                Clear filter
-              </button>
-            )}
-          </div>
-          <MediaGrid
-            media={filteredMedia}
-            isLoading={mediaLoading}
-            emptyMessage={
-              <div className="text-center py-12">
-                <Upload className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  {selectedLanguage ? 'No content in this language' : 'No media available yet'}
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  {selectedLanguage ? (
-                    <>
-                      No content available in this language yet.
-                      <button
-                        onClick={() => setSelectedLanguage(null)}
-                        className="text-primary hover:underline ml-1"
-                      >
-                        View all content
-                      </button>
-                    </>
-                  ) : isAdminUser ? (
-                    'Start by uploading your first video or audio file'
-                  ) : (
-                    'Content is being prepared. Check back soon!'
-                  )}
-                </p>
-                {isAdminUser && !selectedLanguage && (
-                  <Button asChild>
-                    <Link to="/admin/upload">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Media
-                    </Link>
-                  </Button>
+        {/* Empty state when no content */}
+        {!mediaLoading && allMedia.length === 0 && (
+          <section className="text-center py-16">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="max-w-md mx-auto"
+            >
+              <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-6">
+                <Upload className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">No media available yet</h3>
+              <p className="text-muted-foreground mb-6">
+                {isAdminUser 
+                  ? 'Start by uploading your first video or audio file to get started.'
+                  : 'Content is being prepared. Check back soon for amazing media!'}
+              </p>
+              {isAdminUser && (
+                <Button asChild size="lg">
+                  <Link to="/admin/upload">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Media
+                  </Link>
+                </Button>
+              )}
+            </motion.div>
+          </section>
+        )}
+
+        {/* Browse All section */}
+        {filteredMedia.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                <h2 className="text-2xl font-bold">
+                  {selectedLanguage ? `Browse All (${selectedLanguage.toUpperCase()})` : 'Browse All'}
+                </h2>
+                {selectedLanguage && (
+                  <button
+                    onClick={() => setSelectedLanguage(null)}
+                    className="text-sm text-muted-foreground hover:text-primary ml-2"
+                  >
+                    Clear filter
+                  </button>
                 )}
               </div>
-            }
-          />
-        </section>
+            </div>
+            <MediaGrid
+              media={filteredMedia}
+              isLoading={mediaLoading}
+            />
+          </section>
+        )}
       </div>
     </div>
   );
