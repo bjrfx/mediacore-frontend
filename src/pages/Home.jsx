@@ -154,7 +154,7 @@ export default function Home() {
 
       {/* Featured Card - Always visible when content exists */}
       {featuredItem && (
-        <div className="px-6 mb-8">
+        <div className="px-4 sm:px-6 mb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -163,7 +163,7 @@ export default function Home() {
             onClick={() => playTrack(featuredItem, allMedia)}
           >
             {/* Background */}
-            <div className="aspect-[2.5/1] md:aspect-[3/1] lg:aspect-[4/1] relative">
+            <div className="aspect-[1.5/1] sm:aspect-[2/1] md:aspect-[3/1] lg:aspect-[4/1] relative">
               {featuredItem.thumbnail ? (
                 <img
                   src={featuredItem.thumbnail}
@@ -185,15 +185,15 @@ export default function Home() {
             </div>
 
             {/* Content */}
-            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
+            <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 md:p-8">
               {/* Featured badge */}
               <motion.span 
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/20 backdrop-blur-sm px-3 py-1 rounded-full w-fit mb-3"
+                className="inline-flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-primary bg-primary/20 backdrop-blur-sm px-2 sm:px-3 py-0.5 sm:py-1 rounded-full w-fit mb-2 sm:mb-3"
               >
-                <Sparkles className="h-3 w-3" />
+                <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 FEATURED
               </motion.span>
 
@@ -202,7 +202,7 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-2 line-clamp-2"
+                className="text-lg sm:text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-1 sm:mb-2 line-clamp-2"
               >
                 {featuredItem.title}
               </motion.h2>
@@ -212,7 +212,7 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35 }}
-                className="text-white/70 text-sm md:text-base mb-4 line-clamp-1"
+                className="text-white/70 text-xs sm:text-sm md:text-base mb-3 sm:mb-4 line-clamp-1"
               >
                 {featuredItem.artistName || featuredItem.subtitle || 'Start exploring amazing content'}
               </motion.p>
@@ -222,24 +222,24 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="flex items-center gap-3"
+                className="flex items-center gap-2 sm:gap-3"
               >
                 <Button 
                   variant="spotify" 
-                  size="lg" 
-                  className="shadow-lg"
+                  size="sm"
+                  className="shadow-lg sm:h-10 sm:px-4 sm:text-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     handlePlayAll();
                   }}
                 >
-                  <Play className="h-5 w-5 mr-2" fill="currentColor" />
+                  <Play className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" fill="currentColor" />
                   Play All
                 </Button>
                 
                 {/* Media type badge */}
                 <span className={cn(
-                  'px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm',
+                  'px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium backdrop-blur-sm',
                   featuredItem.type === 'video' 
                     ? 'bg-blue-500/30 text-blue-200' 
                     : 'bg-green-500/30 text-green-200'
