@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
@@ -23,6 +23,10 @@ import {
   CreditCard,
   Circle,
   Wifi,
+  Globe,
+  MapPin,
+  Monitor,
+  Smartphone,
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 import { useUIStore } from '../../store';
@@ -335,6 +339,39 @@ export default function AdminUsers() {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return formatDate(date);
+  };
+
+  // Get user session info from online users data
+  const getUserSessionInfo = (uid) => {
+    const onlineUser = onlineUsers.find(u => u.uid === uid);
+    return onlineUser || null;
+  };
+
+  // Parse user agent to get device/browser info
+  const parseUserAgent = (userAgent) => {
+    if (!userAgent) return { device: 'Unknown', browser: 'Unknown' };
+    
+    let device = 'Desktop';
+    let browser = 'Unknown';
+    
+    // Detect device
+    if (/iPhone/i.test(userAgent)) device = 'iPhone';
+    else if (/iPad/i.test(userAgent)) device = 'iPad';
+    else if (/Android/i.test(userAgent)) {
+      device = /Mobile/i.test(userAgent) ? 'Android Phone' : 'Android Tablet';
+    }
+    else if (/Macintosh/i.test(userAgent)) device = 'Mac';
+    else if (/Windows/i.test(userAgent)) device = 'Windows PC';
+    else if (/Linux/i.test(userAgent)) device = 'Linux';
+    
+    // Detect browser
+    if (/Edg/i.test(userAgent)) browser = 'Edge';
+    else if (/Chrome/i.test(userAgent)) browser = 'Chrome';
+    else if (/Safari/i.test(userAgent)) browser = 'Safari';
+    else if (/Firefox/i.test(userAgent)) browser = 'Firefox';
+    else if (/Opera|OPR/i.test(userAgent)) browser = 'Opera';
+    
+    return { device, browser };
   };
 
   // Error state
@@ -891,6 +928,101 @@ export default function AdminUsers() {
                     </div>
                   </div>
                 )}
+
+                {/* Session Info - Online status, IP, Location, Device */}
+                {(() => {
+                  const sessionInfo = getUserSessionInfo(selectedUser.uid);
+                  const isOnline = onlineUserIds.has(selectedUser.uid);
+                  const deviceInfo = sessionInfo?.userAgent ? parseUserAgent(sessionInfo.userAgent) : null;
+                  
+                  return (
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                          Status
+                        </label>
+                        {isOnline ? (
+                          <Badge className="bg-green-500/20 text-green-500 border-green-500/30 gap-1">
+                            <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                            Online
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="gap-1">
+                            <span className="h-2 w-2 bg-gray-400 rounded-full" />
+                            Offline
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {sessionInfo ? (
+                        <>
+                          <div>
+                            <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                              IP Address
+                            </label>
+                            <p className="flex items-center gap-2 mt-1 font-mono text-sm">
+                              <Globe className="h-4 w-4 text-muted-foreground" />
+                              {sessionInfo.ipAddress || 'Unknown'}
+                            </p>
+                          </div>
+                          
+                          {sessionInfo.location && (
+                            <div>
+                              <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Location
+                              </label>
+                              <p className="flex items-center gap-2 mt-1 text-sm">
+                                <MapPin className="h-4 w-4 text-muted-foreground" />
+                                {sessionInfo.location}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {deviceInfo && (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                                  Device
+                                </label>
+                                <p className="flex items-center gap-2 mt-1 text-sm">
+                                  {deviceInfo.device.includes('Phone') || deviceInfo.device.includes('iPhone') ? (
+                                    <Smartphone className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <Monitor className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                  {deviceInfo.device}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                                  Browser
+                                </label>
+                                <p className="flex items-center gap-2 mt-1 text-sm">
+                                  <Globe className="h-4 w-4 text-muted-foreground" />
+                                  {deviceInfo.browser}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div>
+                            <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                              Last Active
+                            </label>
+                            <p className="flex items-center gap-2 mt-1 text-sm">
+                              <Clock className="h-4 w-4 text-muted-foreground" />
+                              {getTimeAgo(sessionInfo.lastSeen)}
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No recent session data available
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Actions */}
