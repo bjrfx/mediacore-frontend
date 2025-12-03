@@ -5,7 +5,7 @@ import { useLibraryStore, usePlayerStore } from '../store';
 import { MediaList } from '../components/media';
 import { Button } from '../components/ui/button';
 
-export default function LikedSongs() {
+export default function Favorites() {
   const { favorites } = useLibraryStore();
   const { playTrack } = usePlayerStore();
 
@@ -44,10 +44,10 @@ export default function LikedSongs() {
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-6xl font-bold mt-2 mb-4"
             >
-              Liked 
+              Favorites
             </motion.h1>
             <div className="text-muted-foreground">
-              {favorites.length} songs
+              {favorites.length} tracks
             </div>
           </div>
         </div>
@@ -82,10 +82,10 @@ export default function LikedSongs() {
           <div className="text-center py-12 bg-card rounded-lg">
             <Heart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">
-              Songs you like will appear here
+              Content you like will appear here
             </h3>
             <p className="text-muted-foreground">
-              Save songs by tapping the heart icon
+              Save content by tapping the heart icon
             </p>
           </div>
         ) : (

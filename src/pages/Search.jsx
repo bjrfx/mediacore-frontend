@@ -89,7 +89,7 @@ export default function Search() {
             <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search for songs, videos, artists..."
+              placeholder="Search for meditation, podcasts, content..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full pl-12 pr-12 h-12 bg-secondary rounded-full border-0 text-lg focus:ring-2 focus:ring-primary"

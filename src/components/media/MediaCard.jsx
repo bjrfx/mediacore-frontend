@@ -186,7 +186,7 @@ export default function MediaCard({ media, queue = [], index = 0, size = 'medium
                   isLiked && 'fill-primary text-primary'
                 )}
               />
-              {isLiked ? 'Remove from Liked' : 'Add to Liked'}
+              {isLiked ? 'Remove from Favorites' : 'Add to Favorites'}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={(e) => {

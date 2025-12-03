@@ -31,7 +31,7 @@ const mainNavItems = [
 
 const libraryItems = [
   { icon: PlusSquare, label: 'Create Playlist', path: '/playlist/create' },
-  { icon: Heart, label: 'Liked', path: '/liked' },
+  { icon: Heart, label: 'Favorites', path: '/liked' },
   { icon: Download, label: 'Downloads', path: '/downloads', requiresAuth: true },
   { icon: Clock, label: 'History', path: '/history' },
 ];

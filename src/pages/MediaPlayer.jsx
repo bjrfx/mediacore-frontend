@@ -151,7 +151,7 @@ export default function MediaPlayer() {
               <>
                 <DropdownMenuItem onClick={() => media && toggleLike(media)}>
                   <Heart className="h-4 w-4 mr-2" />
-                  {isLiked(media?.id) ? 'Remove from Liked' : 'Add to Liked'}
+                  {isLiked(media?.id) ? 'Remove from Favorites' : 'Add to Favorites'}
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <ListPlus className="h-4 w-4 mr-2" />

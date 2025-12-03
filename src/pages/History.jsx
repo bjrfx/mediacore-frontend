@@ -24,7 +24,7 @@ export default function History() {
           <div>
             <h1 className="text-3xl font-bold">Recently Played</h1>
             <p className="text-muted-foreground text-sm">
-              {history.length} songs
+              {history.length} tracks
             </p>
           </div>
         </div>
@@ -44,7 +44,7 @@ export default function History() {
             No listening history yet
           </h3>
           <p className="text-muted-foreground">
-            Songs you play will appear here
+            Content you play will appear here
           </p>
         </div>
       ) : (

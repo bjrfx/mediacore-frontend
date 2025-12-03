@@ -169,7 +169,7 @@ export default function MediaListItem({ media, queue = [], index = 0, showIndex 
                 isLiked && 'fill-primary text-primary'
               )}
             />
-            {isLiked ? 'Remove from Liked' : 'Add to Liked'}
+            {isLiked ? 'Remove from Favorites' : 'Add to Favorites'}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => {

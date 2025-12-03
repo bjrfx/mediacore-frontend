@@ -230,7 +230,7 @@ export default function AlbumPage() {
                 </>
               )}
               <span className="text-muted-foreground">
-                {albumTracks.length} songs
+                {albumTracks.length} tracks
                 {totalDuration > 0 && `, ${formatDuration(totalDuration)}`}
               </span>
             </div>

@@ -23,7 +23,7 @@ const Home = lazy(() => import('./pages/Home'));
 const Search = lazy(() => import('./pages/Search'));
 const Library = lazy(() => import('./pages/Library'));
 const PlaylistDetail = lazy(() => import('./pages/PlaylistDetail'));
-const LikedSongs = lazy(() => import('./pages/LikedSongs'));
+const Favorites = lazy(() => import('./pages/LikedSongs'));
 const History = lazy(() => import('./pages/History'));
 const Settings = lazy(() => import('./pages/Settings'));
 const MediaPlayer = lazy(() => import('./pages/MediaPlayer'));
@@ -98,7 +98,7 @@ function AppRoutes() {
             <Route path="artist/:artistId" element={<ArtistPage />} />
             <Route path="album/:albumId" element={<AlbumPage />} />
             <Route path="playlist/:id" element={<PlaylistDetail />} />
-            <Route path="liked" element={<LikedSongs />} />
+            <Route path="liked" element={<Favorites />} />
             <Route path="downloads" element={<Downloads />} />
             <Route path="history" element={<History />} />
             <Route path="settings" element={<Settings />} />

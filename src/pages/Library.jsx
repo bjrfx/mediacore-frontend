@@ -202,7 +202,7 @@ export default function Library() {
             className="rounded-full px-4 py-2 data-[state=active]:bg-white data-[state=active]:text-black bg-secondary"
           >
             <Heart className="h-4 w-4 mr-2" />
-            Liked
+            Favorites
           </TabsTrigger>
           <TabsTrigger
             value="history"
@@ -243,7 +243,7 @@ export default function Library() {
               <Heart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No liked content yet</h3>
               <p className="text-muted-foreground">
-                Songs you like will appear here
+                Content you like will appear here
               </p>
             </div>
           ) : (
@@ -258,7 +258,7 @@ export default function Library() {
               <Clock className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No listening history</h3>
               <p className="text-muted-foreground">
-                Your recently played songs will appear here
+                Your recently played content will appear here
               </p>
             </div>
           ) : (

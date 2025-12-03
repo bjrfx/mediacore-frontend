@@ -102,7 +102,7 @@ export default function PlaylistDetail() {
               <p className="text-muted-foreground mb-2">{playlist.description}</p>
             )}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>{playlist.tracks.length} songs</span>
+              <span>{playlist.tracks.length} tracks</span>
               {totalDuration > 0 && (
                 <>
                   <span>•</span>
@@ -166,10 +166,10 @@ export default function PlaylistDetail() {
               This playlist is empty
             </h3>
             <p className="text-muted-foreground mb-4">
-              Add songs to get started
+              Add content to get started
             </p>
             <Button variant="outline" onClick={() => navigate('/search')}>
-              Find songs
+              Find content
             </Button>
           </div>
         ) : (
