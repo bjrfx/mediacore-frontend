@@ -442,6 +442,13 @@ export const adminApi = {
     const response = await api.get('/admin/analytics/subscriptions', { headers });
     return response.data;
   },
+
+  // Get currently online users
+  getOnlineUsers: async () => {
+    const headers = await getAuthHeaders();
+    const response = await api.get('/admin/users/online', { headers });
+    return response.data;
+  },
 };
 
 // ============================================
@@ -494,6 +501,13 @@ export const userApi = {
   resetStats: async () => {
     const headers = await getAuthHeaders();
     const response = await api.delete('/api/user/stats?confirm=true', { headers });
+    return response.data;
+  },
+
+  // Send heartbeat to indicate user is online
+  sendHeartbeat: async () => {
+    const headers = await getAuthHeaders();
+    const response = await api.post('/api/user/heartbeat', {}, { headers });
     return response.data;
   },
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../../store';
 import useSubscriptionStore from '../../store/subscriptionStore';
 import usePlayerStore from '../../store/playerStore';
@@ -10,6 +10,9 @@ import {
   LanguageRestrictionModal,
 } from '../subscription';
 import { SUBSCRIPTION_TIERS } from '../../config/subscription';
+
+// Heartbeat interval: 30 seconds
+const HEARTBEAT_INTERVAL = 30000;
 
 /**
  * SubscriptionProvider
@@ -33,6 +36,7 @@ export default function SubscriptionProvider({ children }) {
   } = useSubscriptionStore();
   
   const { isPlaying, currentTrack, pause } = usePlayerStore();
+  const heartbeatIntervalRef = useRef(null);
 
   // Sync subscription tier with auth state
   useEffect(() => {
@@ -58,6 +62,35 @@ export default function SubscriptionProvider({ children }) {
 
     fetchSubscription();
   }, [isAuthenticated, user, setTierFromAuth]);
+
+  // Heartbeat to track online status
+  useEffect(() => {
+    const sendHeartbeat = async () => {
+      if (!isAuthenticated) return;
+      
+      try {
+        await userApi.sendHeartbeat();
+      } catch (error) {
+        // Silently fail - heartbeat is not critical
+        console.debug('[Heartbeat] Failed:', error.message);
+      }
+    };
+
+    if (isAuthenticated) {
+      // Send immediately when user logs in
+      sendHeartbeat();
+      
+      // Then send every 30 seconds
+      heartbeatIntervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+    }
+
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
+    };
+  }, [isAuthenticated]);
 
   // Check and reset limits periodically
   useEffect(() => {

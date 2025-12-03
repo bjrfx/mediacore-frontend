@@ -21,6 +21,8 @@ import {
   Building2,
   Sparkles,
   CreditCard,
+  Circle,
+  Wifi,
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 import { useUIStore } from '../../store';
@@ -100,7 +102,30 @@ export default function AdminUsers() {
     retry: 1,
   });
 
+  // Fetch online users (fails silently if endpoint not available)
+  const {
+    data: onlineUsersData,
+    isLoading: isLoadingOnline,
+    refetch: refetchOnline,
+  } = useQuery({
+    queryKey: ['admin', 'users', 'online'],
+    queryFn: async () => {
+      try {
+        return await adminApi.getOnlineUsers();
+      } catch (error) {
+        // Silently fail if endpoint not available (404)
+        console.debug('[Online Users] Endpoint not available:', error.message);
+        return { data: { count: 0, users: [] } };
+      }
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds
+    retry: false, // Don't retry on failure
+  });
+
   const users = usersData?.data?.users || usersData?.data || [];
+  const onlineUsers = onlineUsersData?.data?.users || onlineUsersData?.users || [];
+  const onlineCount = onlineUsersData?.data?.count || onlineUsersData?.count || onlineUsers.length;
+  const onlineUserIds = new Set(onlineUsers.map(u => u.uid));
 
   // Update user role mutation
   const updateRoleMutation = useMutation({
@@ -362,8 +387,15 @@ export default function AdminUsers() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {[
+          {
+            title: 'Online Now',
+            value: onlineCount,
+            icon: Wifi,
+            color: 'text-green-500',
+            pulse: true,
+          },
           {
             title: 'Total Users',
             value: users.length,
@@ -408,7 +440,7 @@ export default function AdminUsers() {
                 ) : (
                   <>
                     <div className="flex items-center gap-2 mb-2">
-                      <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                      <stat.icon className={cn('h-4 w-4', stat.color, stat.pulse && 'animate-pulse')} />
                       <span className="text-sm text-muted-foreground">
                         {stat.title}
                       </span>
@@ -421,6 +453,67 @@ export default function AdminUsers() {
           </motion.div>
         ))}
       </div>
+
+      {/* Online Users Panel */}
+      {onlineUsers.length > 0 && (
+        <Card className="border-green-500/30 bg-green-500/5">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <div className="relative">
+                  <Wifi className="h-5 w-5 text-green-500" />
+                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-green-500 rounded-full animate-ping" />
+                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-green-500 rounded-full" />
+                </div>
+                <span>Online Users</span>
+                <Badge variant="secondary" className="ml-2 bg-green-500/20 text-green-500">
+                  {onlineCount}
+                </Badge>
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetchOnline()}
+                disabled={isLoadingOnline}
+              >
+                <RefreshCw className={cn('h-4 w-4', isLoadingOnline && 'animate-spin')} />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              {onlineUsers.map((user) => (
+                <motion.div
+                  key={user.uid}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center gap-2 bg-background rounded-full pl-1 pr-3 py-1 border shadow-sm"
+                >
+                  <div className="relative">
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src={user.photoURL} alt={user.displayName} />
+                      <AvatarFallback className="text-xs">
+                        {getInitials(user.displayName, user.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-green-500 rounded-full border-2 border-background" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium leading-tight">
+                      {user.displayName || user.email?.split('@')[0] || 'User'}
+                    </span>
+                    {user.lastSeen && (
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        Active {getTimeAgo(user.lastSeen)}
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search */}
       <Card>
@@ -477,12 +570,17 @@ export default function AdminUsers() {
                     transition={{ delay: index * 0.02 }}
                     className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors"
                   >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.photoURL} alt={user.displayName} />
-                      <AvatarFallback>
-                        {getInitials(user.displayName, user.email)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.photoURL} alt={user.displayName} />
+                        <AvatarFallback>
+                          {getInitials(user.displayName, user.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {onlineUserIds.has(user.uid) && (
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
+                      )}
+                    </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
