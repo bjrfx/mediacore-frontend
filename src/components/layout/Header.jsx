@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Settings, Shield } from 'lucide-react';
-import { useUIStore, useAuthStore } from '../../store';
+import { useUIStore, useAuthStore, useSubscriptionStore } from '../../store';
 import { signInWithGoogle, logOut } from '../../config/firebase';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -13,11 +13,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
+import SubscriptionBadge from '../subscription/SubscriptionBadge';
+import { SUBSCRIPTION_TIERS } from '../../config/subscription';
 
 export default function Header() {
   const navigate = useNavigate();
   const { toggleMobileSidebar } = useUIStore();
   const { user, isAuthenticated, isAdminUser } = useAuthStore();
+  const { tier } = useSubscriptionStore();
 
   const handleSignIn = async () => {
     try {
@@ -103,13 +106,17 @@ export default function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col gap-2">
                     <span>{user?.displayName || 'User'}</span>
                     <span className="text-xs text-muted-foreground font-normal">
                       {user?.email}
                     </span>
+                    {/* Subscription Badge */}
+                    {tier && tier !== SUBSCRIPTION_TIERS.GUEST && (
+                      <SubscriptionBadge tier={tier} size="sm" />
+                    )}
                     {isAdminUser && (
-                      <span className="text-xs text-primary font-medium mt-1">
+                      <span className="text-xs text-primary font-medium">
                         Admin Account
                       </span>
                     )}
