@@ -1,6 +1,23 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// Helper to check subscription (imported dynamically to avoid circular dependency)
+const checkSubscription = async () => {
+  try {
+    const subscriptionStore = (await import('./subscriptionStore')).default;
+    const state = subscriptionStore.getState();
+    
+    if (!state.canPlay()) {
+      state.showLimitReachedModal();
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error checking subscription:', error);
+    return true; // Allow play if check fails
+  }
+};
+
 const usePlayerStore = create(
   persist(
     (set, get) => ({
@@ -75,6 +92,12 @@ const usePlayerStore = create(
       },
 
       playTrack: async (track, queue = null, resumeFromSaved = true) => {
+        // Check subscription before playing
+        const canPlay = await checkSubscription();
+        if (!canPlay) {
+          return; // Subscription modal will be shown
+        }
+        
         // Save progress of current track before switching
         const { currentTrack, currentTime, duration } = get();
         if (currentTrack && currentTime > 5 && duration > 0) {
@@ -183,8 +206,20 @@ const usePlayerStore = create(
       // Clear all progress
       clearAllProgress: () => set({ playbackProgress: {} }),
 
-      togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
-      play: () => set({ isPlaying: true }),
+      togglePlay: async () => {
+        const { isPlaying } = get();
+        // Only check subscription when trying to play (not pause)
+        if (!isPlaying) {
+          const canPlay = await checkSubscription();
+          if (!canPlay) return;
+        }
+        set((state) => ({ isPlaying: !state.isPlaying }));
+      },
+      play: async () => {
+        const canPlay = await checkSubscription();
+        if (!canPlay) return;
+        set({ isPlaying: true });
+      },
       pause: () => {
         // Save progress when pausing
         const { currentTrack, currentTime, duration } = get();
@@ -194,7 +229,11 @@ const usePlayerStore = create(
         set({ isPlaying: false });
       },
 
-      playNext: () => {
+      playNext: async () => {
+        // Check subscription before playing next
+        const canPlay = await checkSubscription();
+        if (!canPlay) return;
+        
         const { queue, queueIndex, repeatMode, isShuffled, currentTrack, currentTime, duration } = get();
         
         // Save progress of current track
@@ -229,7 +268,7 @@ const usePlayerStore = create(
         }
       },
 
-      playPrevious: () => {
+      playPrevious: async () => {
         const { queue, queueIndex, currentTime, currentTrack, duration } = get();
         if (queue.length === 0) return;
 
@@ -238,6 +277,10 @@ const usePlayerStore = create(
           set({ currentTime: 0 });
           return;
         }
+
+        // Check subscription before playing previous
+        const canPlay = await checkSubscription();
+        if (!canPlay) return;
 
         // Save progress of current track
         if (currentTrack && currentTime > 5 && duration > 0) {

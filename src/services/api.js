@@ -422,9 +422,60 @@ export const adminApi = {
     const response = await api.delete(`/admin/users/${uid}`, { headers });
     return response.data;
   },
+
+  // ---- Subscription Management ----
+
+  // Update user subscription tier
+  updateUserSubscription: async (uid, subscriptionTier) => {
+    const headers = await getAuthHeaders();
+    const response = await api.put(
+      `/admin/users/${uid}/subscription`,
+      { subscriptionTier },
+      { headers }
+    );
+    return response.data;
+  },
+
+  // Get subscription stats
+  getSubscriptionStats: async () => {
+    const headers = await getAuthHeaders();
+    const response = await api.get('/admin/analytics/subscriptions', { headers });
+    return response.data;
+  },
 };
 
-const apiService = { publicApi, adminApi };
+// ============================================
+// USER API (Authenticated user actions)
+// ============================================
+
+export const userApi = {
+  // Get current user's subscription info
+  getMySubscription: async () => {
+    const headers = await getAuthHeaders();
+    const response = await api.get('/api/user/subscription', { headers });
+    return response.data;
+  },
+
+  // Get current user's profile
+  getMyProfile: async () => {
+    const headers = await getAuthHeaders();
+    const response = await api.get('/api/user/profile', { headers });
+    return response.data;
+  },
+
+  // Update playback usage (for server-side tracking)
+  updatePlaybackUsage: async (seconds) => {
+    const headers = await getAuthHeaders();
+    const response = await api.post(
+      '/api/user/playback-usage',
+      { seconds },
+      { headers }
+    );
+    return response.data;
+  },
+};
+
+const apiService = { publicApi, adminApi, userApi };
 export default apiService;
 
 // ============================================

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Languages, Globe, Check, Ban } from 'lucide-react';
+import { Languages, Globe, Check, Ban, Lock } from 'lucide-react';
 import { Button } from '../ui/button';
 import {
   DropdownMenu,
@@ -12,6 +12,8 @@ import {
 } from '../ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../ui/tooltip';
 import { cn } from '../../lib/utils';
+import { useSubscriptionStore } from '../../store';
+import { canAccessLanguage, SUBSCRIPTION_TIERS } from '../../config/subscription';
 
 // Language code to name mapping
 const LANGUAGE_NAMES = {
@@ -57,8 +59,27 @@ export default function LanguageSelector({
   variant = 'full',
   disabled = false,
 }) {
+  const { tier, showUpgrade } = useSubscriptionStore();
   const hasMultipleLanguages = availableLanguages.length > 1;
   const currentLangInfo = LANGUAGE_NAMES[currentLanguage] || { name: currentLanguage, nativeName: currentLanguage };
+  
+  // Check if user can access non-English languages
+  const canAccessAllLanguages = tier === SUBSCRIPTION_TIERS.PREMIUM || 
+    tier === SUBSCRIPTION_TIERS.PREMIUM_PLUS || 
+    tier === SUBSCRIPTION_TIERS.ENTERPRISE;
+
+  // Handle language selection with subscription check
+  const handleLanguageSelect = (lang) => {
+    if (lang.code === currentLanguage) return;
+    
+    // Check if user can access this language
+    if (!canAccessLanguage(tier, lang.code)) {
+      showUpgrade('language');
+      return;
+    }
+    
+    onLanguageChange?.(lang);
+  };
   
   // If no languages available or only one language
   if (availableLanguages.length === 0) {
@@ -171,23 +192,30 @@ export default function LanguageSelector({
         {availableLanguages.map((lang) => {
           const langInfo = LANGUAGE_NAMES[lang.code] || { name: lang.code, nativeName: lang.code };
           const isSelected = lang.code === currentLanguage;
+          const isLocked = !canAccessLanguage(tier, lang.code);
           
           return (
             <DropdownMenuItem
               key={lang.code}
-              onClick={() => !isSelected && onLanguageChange?.(lang)}
+              onClick={() => handleLanguageSelect(lang)}
               className={cn(
                 'flex items-center justify-between cursor-pointer',
-                isSelected && 'bg-accent'
+                isSelected && 'bg-accent',
+                isLocked && 'opacity-75'
               )}
             >
               <div className="flex flex-col">
                 <span className="font-medium">{langInfo.name}</span>
                 <span className="text-xs text-muted-foreground">{langInfo.nativeName}</span>
               </div>
-              {isSelected && (
-                <Check className="h-4 w-4 text-primary" />
-              )}
+              <div className="flex items-center gap-2">
+                {isLocked && (
+                  <Lock className="h-3.5 w-3.5 text-amber-500" />
+                )}
+                {isSelected && (
+                  <Check className="h-4 w-4 text-primary" />
+                )}
+              </div>
             </DropdownMenuItem>
           );
         })}

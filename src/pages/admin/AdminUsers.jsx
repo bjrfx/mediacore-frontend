@@ -17,6 +17,10 @@ import {
   AlertTriangle,
   Crown,
   User,
+  Star,
+  Building2,
+  Sparkles,
+  CreditCard,
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 import { useUIStore } from '../../store';
@@ -32,6 +36,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '../../components/ui/dropdown-menu';
 import {
   Dialog,
@@ -50,8 +58,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 import { formatDate, cn } from '../../lib/utils';
 import { ScrollArea } from '../../components/ui/scroll-area';
+import {
+  SUBSCRIPTION_TIERS,
+  TIER_DISPLAY_NAMES,
+  TIER_COLORS,
+} from '../../config/subscription';
 
 export default function AdminUsers() {
   const queryClient = useQueryClient();
@@ -61,8 +81,11 @@ export default function AdminUsers() {
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [userToChangeRole, setUserToChangeRole] = useState(null);
+  const [userToChangeSubscription, setUserToChangeSubscription] = useState(null);
+  const [selectedSubscriptionTier, setSelectedSubscriptionTier] = useState(null);
 
   // Fetch users
   const {
@@ -137,6 +160,32 @@ export default function AdminUsers() {
     },
   });
 
+  // Update user subscription mutation
+  const updateSubscriptionMutation = useMutation({
+    mutationFn: ({ uid, subscriptionTier }) => {
+      console.log('[Admin] Updating subscription:', { uid, subscriptionTier });
+      return adminApi.updateUserSubscription(uid, subscriptionTier);
+    },
+    onSuccess: (response, variables) => {
+      console.log('[Admin] Subscription updated successfully:', response);
+      queryClient.invalidateQueries(['admin', 'users']);
+      setShowSubscriptionDialog(false);
+      setUserToChangeSubscription(null);
+      setSelectedSubscriptionTier(null);
+      addToast({
+        message: `Subscription updated to ${TIER_DISPLAY_NAMES[variables.subscriptionTier]}`,
+        type: 'success',
+      });
+    },
+    onError: (error) => {
+      console.error('[Admin] Subscription update failed:', error);
+      addToast({
+        message: error.response?.data?.message || error.message || 'Failed to update subscription. Make sure the backend API endpoint exists.',
+        type: 'error',
+      });
+    },
+  });
+
   // Filter users based on search
   const filteredUsers = users.filter((user) => {
     const query = searchQuery.toLowerCase();
@@ -165,9 +214,33 @@ export default function AdminUsers() {
     setShowDeleteDialog(true);
   };
 
+  const handleChangeSubscription = (user) => {
+    setUserToChangeSubscription(user);
+    setSelectedSubscriptionTier(user.subscriptionTier || SUBSCRIPTION_TIERS.FREE);
+    setShowSubscriptionDialog(true);
+  };
+
   const confirmRoleChange = (newRole) => {
     if (userToChangeRole) {
       updateRoleMutation.mutate({ uid: userToChangeRole.uid, role: newRole });
+    }
+  };
+
+  const confirmSubscriptionChange = () => {
+    console.log('[Admin] confirmSubscriptionChange called:', {
+      user: userToChangeSubscription,
+      tier: selectedSubscriptionTier,
+    });
+    if (userToChangeSubscription && selectedSubscriptionTier) {
+      updateSubscriptionMutation.mutate({
+        uid: userToChangeSubscription.uid,
+        subscriptionTier: selectedSubscriptionTier,
+      });
+    } else {
+      console.warn('[Admin] Missing user or tier:', {
+        hasUser: !!userToChangeSubscription,
+        hasTier: !!selectedSubscriptionTier,
+      });
     }
   };
 
@@ -183,6 +256,33 @@ export default function AdminUsers() {
 
   const isUserAdmin = (user) => {
     return user.role === 'admin' || user.customClaims?.admin;
+  };
+
+  const getUserSubscriptionTier = (user) => {
+    return user.subscriptionTier || user.customClaims?.subscriptionTier || SUBSCRIPTION_TIERS.FREE;
+  };
+
+  const getSubscriptionIcon = (tier) => {
+    switch (tier) {
+      case SUBSCRIPTION_TIERS.ENTERPRISE:
+        return <Building2 className="h-4 w-4" />;
+      case SUBSCRIPTION_TIERS.PREMIUM_PLUS:
+        return <Crown className="h-4 w-4" />;
+      case SUBSCRIPTION_TIERS.PREMIUM:
+        return <Star className="h-4 w-4" />;
+      default:
+        return <Sparkles className="h-4 w-4" />;
+    }
+  };
+
+  const getSubscriptionBadge = (tier) => {
+    const colorClass = TIER_COLORS[tier] || TIER_COLORS[SUBSCRIPTION_TIERS.FREE];
+    return (
+      <Badge className={cn('gap-1', colorClass)}>
+        {getSubscriptionIcon(tier)}
+        {TIER_DISPLAY_NAMES[tier] || 'Free'}
+      </Badge>
+    );
   };
 
   const getInitials = (name, email) => {
@@ -399,6 +499,7 @@ export default function AdminUsers() {
                     </div>
 
                     <div className="hidden md:flex items-center gap-2">
+                      {getSubscriptionBadge(getUserSubscriptionTier(user))}
                       {isUserAdmin(user) ? (
                         <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">
                           Admin
@@ -435,12 +536,71 @@ export default function AdminUsers() {
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuItem onClick={() => handleViewUser(user)}>
                           <User className="h-4 w-4 mr-2" />
                           View Details
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Subscription</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleChangeSubscription(user)}>
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Change Subscription
+                        </DropdownMenuItem>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <Star className="h-4 w-4 mr-2" />
+                            Quick Set Tier
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                updateSubscriptionMutation.mutate({
+                                  uid: user.uid,
+                                  subscriptionTier: SUBSCRIPTION_TIERS.FREE,
+                                })
+                              }
+                            >
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Free
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                updateSubscriptionMutation.mutate({
+                                  uid: user.uid,
+                                  subscriptionTier: SUBSCRIPTION_TIERS.PREMIUM,
+                                })
+                              }
+                            >
+                              <Star className="h-4 w-4 mr-2 text-purple-500" />
+                              Premium
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                updateSubscriptionMutation.mutate({
+                                  uid: user.uid,
+                                  subscriptionTier: SUBSCRIPTION_TIERS.PREMIUM_PLUS,
+                                })
+                              }
+                            >
+                              <Crown className="h-4 w-4 mr-2 text-amber-500" />
+                              Premium Plus
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                updateSubscriptionMutation.mutate({
+                                  uid: user.uid,
+                                  subscriptionTier: SUBSCRIPTION_TIERS.ENTERPRISE,
+                                })
+                              }
+                            >
+                              <Building2 className="h-4 w-4 mr-2 text-emerald-500" />
+                              Enterprise
+                            </DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Role & Status</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleChangeRole(user)}>
                           {isUserAdmin(user) ? (
                             <>
@@ -587,6 +747,15 @@ export default function AdminUsers() {
                   </p>
                 </div>
 
+                <div>
+                  <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                    Subscription
+                  </label>
+                  <div className="mt-1">
+                    {getSubscriptionBadge(getUserSubscriptionTier(selectedUser))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-muted-foreground uppercase tracking-wide">
@@ -631,10 +800,20 @@ export default function AdminUsers() {
                 <Button
                   variant="outline"
                   className="flex-1"
+                  onClick={() => handleChangeSubscription(selectedUser)}
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Subscription
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
                   onClick={() => handleChangeRole(selectedUser)}
                 >
                   {isUserAdmin(selectedUser) ? 'Remove Admin' : 'Make Admin'}
                 </Button>
+              </div>
+              <div className="flex gap-2">
                 <Button
                   variant="outline"
                   className="flex-1"
@@ -708,6 +887,108 @@ export default function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change subscription dialog */}
+      <Dialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Change Subscription
+            </DialogTitle>
+            <DialogDescription>
+              Update the subscription tier for{' '}
+              <span className="font-semibold">
+                {userToChangeSubscription?.displayName || userToChangeSubscription?.email}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Current Subscription
+              </label>
+              {userToChangeSubscription && getSubscriptionBadge(getUserSubscriptionTier(userToChangeSubscription))}
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                New Subscription Tier
+              </label>
+              <Select
+                value={selectedSubscriptionTier}
+                onValueChange={setSelectedSubscriptionTier}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a tier" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SUBSCRIPTION_TIERS.FREE}>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      Free
+                    </div>
+                  </SelectItem>
+                  <SelectItem value={SUBSCRIPTION_TIERS.PREMIUM}>
+                    <div className="flex items-center gap-2">
+                      <Star className="h-4 w-4 text-purple-500" />
+                      Premium (₹49/month)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value={SUBSCRIPTION_TIERS.PREMIUM_PLUS}>
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-4 w-4 text-amber-500" />
+                      Premium Plus (₹99/month)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value={SUBSCRIPTION_TIERS.ENTERPRISE}>
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-emerald-500" />
+                      Enterprise
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Tier description */}
+            {selectedSubscriptionTier && (
+              <div className="p-3 rounded-lg bg-muted text-sm">
+                {selectedSubscriptionTier === SUBSCRIPTION_TIERS.FREE && (
+                  <p>10 minutes per session, English only, resets every 2 hours</p>
+                )}
+                {selectedSubscriptionTier === SUBSCRIPTION_TIERS.PREMIUM && (
+                  <p>5 hours daily, all languages, offline downloads</p>
+                )}
+                {selectedSubscriptionTier === SUBSCRIPTION_TIERS.PREMIUM_PLUS && (
+                  <p>Unlimited playback, all languages, priority support</p>
+                )}
+                {selectedSubscriptionTier === SUBSCRIPTION_TIERS.ENTERPRISE && (
+                  <p>Unlimited access, API access, custom billing</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 mt-6">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowSubscriptionDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={confirmSubscriptionChange}
+              disabled={!selectedSubscriptionTier || updateSubscriptionMutation.isPending}
+            >
+              {updateSubscriptionMutation.isPending ? 'Updating...' : 'Update Subscription'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

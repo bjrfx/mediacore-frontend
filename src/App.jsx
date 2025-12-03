@@ -18,6 +18,9 @@ import { VideoPlayer } from './components/player';
 // PWA
 import { InstallPrompt } from './components/pwa';
 
+// Subscription
+import { SubscriptionProvider } from './components/subscription';
+
 // Lazy load pages for better performance
 const Home = lazy(() => import('./pages/Home'));
 const Search = lazy(() => import('./pages/Search'));
@@ -178,25 +181,27 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <div className="min-h-screen bg-background text-foreground">
-          <AppRoutes />
+        <SubscriptionProvider>
+          <div className="min-h-screen bg-background text-foreground">
+            <AppRoutes />
 
-          {/* Login Modal */}
-          <LoginModal
-            open={showLoginModal}
-            onOpenChange={setShowLoginModal}
-          />
+            {/* Login Modal */}
+            <LoginModal
+              open={showLoginModal}
+              onOpenChange={setShowLoginModal}
+            />
 
-          {/* Video Player */}
-          <AnimatePresence>
-            {showVideoPlayer && (
-              <VideoPlayer onClose={() => setShowVideoPlayer(false)} />
-            )}
-          </AnimatePresence>
+            {/* Video Player */}
+            <AnimatePresence>
+              {showVideoPlayer && (
+                <VideoPlayer onClose={() => setShowVideoPlayer(false)} />
+              )}
+            </AnimatePresence>
 
-          {/* PWA Install Prompt */}
-          <InstallPrompt />
-        </div>
+            {/* PWA Install Prompt */}
+            <InstallPrompt />
+          </div>
+        </SubscriptionProvider>
       </Router>
     </QueryClientProvider>
   );
