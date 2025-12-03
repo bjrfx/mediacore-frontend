@@ -18,6 +18,17 @@ const checkSubscription = async () => {
   }
 };
 
+// Helper to get stats store (imported dynamically to avoid circular dependency)
+const getStatsStore = async () => {
+  try {
+    const statsStore = (await import('./statsStore')).default;
+    return statsStore.getState();
+  } catch (error) {
+    console.error('Error getting stats store:', error);
+    return null;
+  }
+};
+
 const usePlayerStore = create(
   persist(
     (set, get) => ({
@@ -100,6 +111,20 @@ const usePlayerStore = create(
         
         // Save progress of current track before switching
         const { currentTrack, currentTime, duration } = get();
+        if (currentTrack && currentTime > 5 && duration > 0) {
+          get().saveProgress(currentTrack.id, currentTime, duration);
+        }
+
+        // Record stats for previous track before switching
+        const statsStore = await getStatsStore();
+        if (statsStore && currentTrack) {
+          await statsStore.recordPlay(false); // Not completed, just switched
+        }
+
+        // Start tracking new track for stats
+        if (statsStore && track) {
+          statsStore.startPlay(track);
+        }
         if (currentTrack && currentTime > 5 && duration > 0) {
           get().saveProgress(currentTrack.id, currentTime, duration);
         }
@@ -241,6 +266,13 @@ const usePlayerStore = create(
           get().saveProgress(currentTrack.id, currentTime, duration);
         }
 
+        // Record stats for completed track
+        const statsStore = await getStatsStore();
+        const isCompleted = duration > 0 && (currentTime / duration) > 0.9; // 90% = completed
+        if (statsStore && currentTrack) {
+          await statsStore.recordPlay(isCompleted);
+        }
+
         if (queue.length === 0) return;
 
         let nextIndex;
@@ -257,6 +289,11 @@ const usePlayerStore = create(
 
         const nextTrack = queue[nextIndex];
         if (nextTrack) {
+          // Start tracking new track for stats
+          if (statsStore) {
+            statsStore.startPlay(nextTrack);
+          }
+          
           const savedProgress = get().playbackProgress[nextTrack.id];
           set({
             queueIndex: nextIndex,
@@ -302,11 +339,25 @@ const usePlayerStore = create(
 
       setDuration: (duration) => set({ duration }),
       setCurrentTime: (currentTime) => {
+        const previousTime = get().currentTime;
         set({ currentTime });
+        
         // Periodically save progress (every 10 seconds of playback)
         const { currentTrack, duration } = get();
         if (currentTrack && duration > 0 && Math.floor(currentTime) % 10 === 0) {
           get().saveProgress(currentTrack.id, currentTime, duration);
+        }
+
+        // Update stats tracking every second
+        if (Math.floor(currentTime) > Math.floor(previousTime)) {
+          const timeDiff = currentTime - previousTime;
+          if (timeDiff > 0 && timeDiff < 5) { // Sanity check - ignore large jumps (seeks)
+            getStatsStore().then(statsStore => {
+              if (statsStore) {
+                statsStore.updatePlayDuration(timeDiff);
+              }
+            });
+          }
         }
       },
       setIsLoading: (isLoading) => set({ isLoading }),
@@ -341,11 +392,17 @@ const usePlayerStore = create(
       setExpanded: (expanded) => set({ isExpanded: expanded }),
       toggleExpanded: () => set((state) => ({ isExpanded: !state.isExpanded })),
 
-      closeMiniPlayer: () => {
+      closeMiniPlayer: async () => {
         // Save progress before closing
         const { currentTrack, currentTime, duration } = get();
         if (currentTrack && currentTime > 5 && duration > 0) {
           get().saveProgress(currentTrack.id, currentTime, duration);
+        }
+
+        // Record stats before closing
+        const statsStore = await getStatsStore();
+        if (statsStore && currentTrack) {
+          await statsStore.recordPlay(false); // Not completed
         }
         
         set({

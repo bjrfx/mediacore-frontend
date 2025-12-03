@@ -67,9 +67,9 @@ export function LanguageCard({
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] bg-[length:20px_20px]" />
       
       {/* Content */}
-      <div className="absolute inset-0 p-3 sm:p-4 flex flex-col justify-between">
+      <div className="absolute inset-0 p-3 sm:p-4 lg:p-1.5 flex flex-col justify-between">
         {/* Icon */}
-        <div className="text-2xl sm:text-3xl md:text-4xl">
+        <div className="text-2xl sm:text-3xl md:text-4xl mb-0">
           {config.icon}
         </div>
         

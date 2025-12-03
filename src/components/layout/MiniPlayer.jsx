@@ -31,7 +31,6 @@ import {
 } from 'lucide-react';
 import { cn, formatDuration } from '../../lib/utils';
 import { usePlayerStore, useLibraryStore, useDownloadStore } from '../../store';
-import useStatsStore from '../../store/statsStore';
 import { publicApi } from '../../services/api';
 import { Button } from '../ui/button';
 import { Slider } from '../ui/slider';
@@ -61,10 +60,8 @@ function MiniPlayer() {
   const [playbackError, setPlaybackError] = useState(null);
   const lastTrackIdRef = useRef(null);
   const lastTimeUpdateRef = useRef(0);
-  const hasRecordedPlayRef = useRef(false);
 
-  // Stats store for tracking listening time and play counts
-  const { addListeningTime, recordTrackPlay } = useStatsStore();
+  // Note: Stats tracking is now handled in playerStore via startPlay/recordPlay
 
   const {
     currentTrack,
@@ -181,34 +178,16 @@ function MiniPlayer() {
   // Track when track changes for resume tracking
   useEffect(() => {
     if (currentTrack) {
-      // Reset play tracking for new track
+      // Reset time tracking for new track
       if (lastTrackIdRef.current !== currentTrack.id) {
-        hasRecordedPlayRef.current = false;
         lastTimeUpdateRef.current = 0;
       }
       lastTrackIdRef.current = currentTrack.id;
     }
   }, [currentTrack?.id]);
 
-  // Track listening time during playback
-  useEffect(() => {
-    if (!isPlaying || !currentTrack) return;
-
-    const interval = setInterval(() => {
-      // Add 5 seconds of listening time every 5 seconds while playing
-      addListeningTime(5);
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [isPlaying, currentTrack, addListeningTime]);
-
-  // Record play count when track starts playing (after 5 seconds of playback)
-  useEffect(() => {
-    if (isPlaying && currentTrack && currentTime >= 5 && !hasRecordedPlayRef.current) {
-      recordTrackPlay(currentTrack);
-      hasRecordedPlayRef.current = true;
-    }
-  }, [isPlaying, currentTrack, currentTime, recordTrackPlay]);
+  // Note: Stats tracking (listening time + play counts) is now handled 
+  // in playerStore via startPlay, updatePlayDuration, and recordPlay
 
   // Handle seekToTime from store (for resuming playback)
   useEffect(() => {

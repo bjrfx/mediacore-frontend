@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -15,6 +15,7 @@ import {
   Trophy,
   Headphones,
   Disc,
+  RefreshCw,
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
@@ -23,6 +24,7 @@ import useStatsStore from '../store/statsStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
+import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../lib/utils';
 
 // Format time from seconds to readable string
@@ -156,20 +158,28 @@ export default function Profile() {
   const { user, isAuthenticated, isAdminUser } = useAuthStore();
   const { playTrack } = usePlayerStore();
   const {
+    stats,
+    isLoading,
+    fetchStats,
     getStatsSummary,
     getTopTracks,
     getTopArtists,
-    getTopGenres,
-    getListeningTimeForPeriod,
-    clearStats,
+    getWeeklyActivity,
+    resetStats,
   } = useStatsStore();
 
-  // Get stats data
-  const stats = useMemo(() => getStatsSummary(), [getStatsSummary]);
-  const topTracks = useMemo(() => getTopTracks(5), [getTopTracks]);
-  const topArtists = useMemo(() => getTopArtists(5), [getTopArtists]);
-  const topGenres = useMemo(() => getTopGenres(5), [getTopGenres]);
-  const weeklyListening = useMemo(() => getListeningTimeForPeriod(7), [getListeningTimeForPeriod]);
+  // Fetch stats on mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchStats();
+    }
+  }, [isAuthenticated, fetchStats]);
+
+  // Get computed stats data
+  const statsSummary = useMemo(() => getStatsSummary(), [stats, getStatsSummary]);
+  const topTracks = useMemo(() => getTopTracks(5), [stats, getTopTracks]);
+  const topArtists = useMemo(() => getTopArtists(5), [stats, getTopArtists]);
+  const weeklyListening = useMemo(() => getWeeklyActivity(), [stats, getWeeklyActivity]);
 
   const handleSignOut = async () => {
     try {
@@ -179,10 +189,14 @@ export default function Profile() {
     }
   };
 
-  const handleClearStats = () => {
+  const handleClearStats = async () => {
     if (window.confirm('Are you sure you want to clear all listening statistics? This cannot be undone.')) {
-      clearStats();
+      await resetStats();
     }
+  };
+
+  const handleRefreshStats = () => {
+    fetchStats();
   };
 
   const handlePlayTrack = (track) => {
@@ -265,12 +279,16 @@ export default function Profile() {
                 )}
                 <span className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full font-medium flex items-center gap-1">
                   <Flame className="h-3 w-3" />
-                  {stats.currentStreak} day streak
+                  {statsSummary.currentStreak} day streak
                 </span>
               </div>
             </div>
             
             <div className="flex gap-2 pb-4">
+              <Button variant="outline" size="sm" onClick={handleRefreshStats} disabled={isLoading}>
+                <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+                Refresh
+              </Button>
               <Button variant="outline" size="sm" asChild>
                 <Link to="/settings">
                   <Settings className="h-4 w-4 mr-2" />
@@ -296,15 +314,15 @@ export default function Profile() {
           <StatCard
             icon={Clock}
             label="Total Listening"
-            value={stats.totalHours > 0 ? `${stats.totalHours}h` : `${stats.totalMinutes}m`}
-            subtext={`${formatTime(stats.totalListeningTime)} of music`}
+            value={statsSummary.totalHours > 0 ? `${statsSummary.totalHours}h` : `${statsSummary.totalMinutes}m`}
+            subtext={`${formatTime(statsSummary.totalListeningTime)} of music`}
             gradient="bg-gradient-to-br from-blue-500 to-cyan-500"
             delay={0}
           />
           <StatCard
             icon={Play}
             label="Total Plays"
-            value={formatNumber(stats.totalPlays)}
+            value={formatNumber(statsSummary.totalPlays)}
             subtext="tracks played"
             gradient="bg-gradient-to-br from-green-500 to-emerald-500"
             delay={0.1}
@@ -312,7 +330,7 @@ export default function Profile() {
           <StatCard
             icon={Music}
             label="Unique Tracks"
-            value={formatNumber(stats.uniqueTracks)}
+            value={formatNumber(statsSummary.uniqueTracks)}
             subtext="different songs"
             gradient="bg-gradient-to-br from-purple-500 to-pink-500"
             delay={0.2}
@@ -320,7 +338,7 @@ export default function Profile() {
           <StatCard
             icon={Headphones}
             label="Artists"
-            value={formatNumber(stats.uniqueArtists)}
+            value={formatNumber(statsSummary.uniqueArtists)}
             subtext="unique artists"
             gradient="bg-gradient-to-br from-orange-500 to-red-500"
             delay={0.3}
@@ -342,12 +360,12 @@ export default function Profile() {
             <CardContent>
               <div className="flex justify-around text-center">
                 <div>
-                  <p className="text-4xl font-bold text-orange-500">{stats.currentStreak}</p>
+                  <p className="text-4xl font-bold text-orange-500">{statsSummary.currentStreak}</p>
                   <p className="text-sm text-muted-foreground">Current Streak</p>
                 </div>
                 <div className="w-px bg-border" />
                 <div>
-                  <p className="text-4xl font-bold text-yellow-500">{stats.longestStreak}</p>
+                  <p className="text-4xl font-bold text-yellow-500">{statsSummary.longestStreak}</p>
                   <p className="text-sm text-muted-foreground">Longest Streak</p>
                 </div>
               </div>
@@ -382,12 +400,31 @@ export default function Profile() {
               <CardDescription>Your most played songs</CardDescription>
             </CardHeader>
             <CardContent>
-              {topTracks.length > 0 ? (
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="flex items-center gap-4 p-3">
+                      <Skeleton className="w-6 h-6 rounded" />
+                      <Skeleton className="w-12 h-12 rounded" />
+                      <div className="flex-1">
+                        <Skeleton className="h-4 w-3/4 mb-2" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : topTracks.length > 0 ? (
                 <div className="space-y-1">
                   {topTracks.map((track, index) => (
                     <TopTrackItem
-                      key={track.id}
-                      track={track}
+                      key={track.mediaId || index}
+                      track={{
+                        id: track.mediaId,
+                        title: track.title,
+                        artist: track.artist || track.artistName,
+                        thumbnail: track.thumbnail,
+                        playCount: track.playCount,
+                      }}
                       rank={index + 1}
                       onPlay={handlePlayTrack}
                     />
@@ -413,11 +450,23 @@ export default function Profile() {
               <CardDescription>Artists you love the most</CardDescription>
             </CardHeader>
             <CardContent>
-              {topArtists.length > 0 ? (
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="flex items-center gap-4 p-3">
+                      <Skeleton className="w-6 h-6 rounded" />
+                      <Skeleton className="w-12 h-12 rounded-full" />
+                      <div className="flex-1">
+                        <Skeleton className="h-4 w-3/4" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : topArtists.length > 0 ? (
                 <div className="space-y-1">
                   {topArtists.map((artist, index) => (
                     <TopArtistItem
-                      key={artist.name}
+                      key={artist.artistId || artist.name || index}
                       artist={artist}
                       rank={index + 1}
                     />
@@ -434,43 +483,6 @@ export default function Profile() {
           </Card>
         </div>
       </section>
-
-      {/* Genres Section */}
-      {topGenres.length > 0 && (
-        <section className="mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Music className="h-5 w-5 text-purple-500" />
-                Favorite Genres
-              </CardTitle>
-              <CardDescription>Your musical taste</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {topGenres.map((genre, index) => (
-                  <motion.span
-                    key={genre.name}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    className={cn(
-                      'px-4 py-2 rounded-full text-sm font-medium',
-                      index === 0 && 'bg-gradient-to-r from-primary to-purple-600 text-white',
-                      index === 1 && 'bg-purple-500/20 text-purple-400',
-                      index === 2 && 'bg-pink-500/20 text-pink-400',
-                      index > 2 && 'bg-accent text-accent-foreground'
-                    )}
-                  >
-                    {genre.name}
-                    <span className="ml-2 opacity-75">({genre.playCount})</span>
-                  </motion.span>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      )}
 
       {/* Actions */}
       <section>

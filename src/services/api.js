@@ -473,6 +473,29 @@ export const userApi = {
     );
     return response.data;
   },
+
+  // ---- User Stats API ----
+
+  // Get user's complete listening statistics
+  getStats: async () => {
+    const headers = await getAuthHeaders();
+    const response = await api.get('/api/user/stats', { headers });
+    return response.data;
+  },
+
+  // Record a play event
+  recordPlay: async (playData) => {
+    const headers = await getAuthHeaders();
+    const response = await api.post('/api/user/stats/play', playData, { headers });
+    return response.data;
+  },
+
+  // Reset all user stats (for testing/privacy)
+  resetStats: async () => {
+    const headers = await getAuthHeaders();
+    const response = await api.delete('/api/user/stats?confirm=true', { headers });
+    return response.data;
+  },
 };
 
 const apiService = { publicApi, adminApi, userApi };
