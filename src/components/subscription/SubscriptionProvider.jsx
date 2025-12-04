@@ -44,7 +44,7 @@ export default function SubscriptionProvider({ children }) {
   const subscriptionRefreshIntervalRef = useRef(null);
 
   // Function to fetch subscription from API
-  const fetchSubscription = useCallback(async () => {
+  const fetchSubscription = useCallback(async (forceUpdate = false) => {
     if (!isAuthenticated || !user) {
       setTierFromAuth(false, null);
       return;
@@ -53,11 +53,11 @@ export default function SubscriptionProvider({ children }) {
     try {
       const response = await userApi.getMySubscription();
       const tier = response?.data?.subscriptionTier || response?.subscriptionTier || SUBSCRIPTION_TIERS.FREE;
-      console.log('[Subscription] Fetched tier:', tier, 'Current tier:', currentTier);
+      console.log('[Subscription] Fetched tier from server:', tier, 'Current local tier:', currentTier);
       
-      // Only update if tier has changed
-      if (tier !== currentTier) {
-        console.log('[Subscription] Tier changed from', currentTier, 'to', tier);
+      // Always update from server - server is the source of truth
+      if (forceUpdate || tier !== currentTier) {
+        console.log('[Subscription] Updating tier from', currentTier, 'to', tier);
         setTierFromAuth(true, tier);
       }
     } catch (error) {
@@ -69,9 +69,14 @@ export default function SubscriptionProvider({ children }) {
     }
   }, [isAuthenticated, user, currentTier, setTierFromAuth]);
 
-  // Sync subscription tier with auth state on login/logout
+  // Sync subscription tier with auth state on login/logout - ALWAYS fetch fresh from server
   useEffect(() => {
-    fetchSubscription();
+    if (isAuthenticated && user) {
+      // Force update on initial load to get fresh data from server
+      fetchSubscription(true);
+    } else {
+      setTierFromAuth(false, null);
+    }
   }, [isAuthenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Periodically refresh subscription to pick up admin changes
