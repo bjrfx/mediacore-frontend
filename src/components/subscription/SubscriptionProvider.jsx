@@ -133,10 +133,14 @@ export default function SubscriptionProvider({ children }) {
       if (!isAuthenticated) return;
       
       try {
-        await userApi.sendHeartbeat();
+        const response = await userApi.sendHeartbeat();
+        console.debug('[Heartbeat] Sent successfully:', response);
       } catch (error) {
-        // Silently fail - heartbeat is not critical
-        console.debug('[Heartbeat] Failed:', error.message);
+        // Log the error for debugging
+        console.warn('[Heartbeat] Failed:', error.message);
+        if (error.response) {
+          console.warn('[Heartbeat] Server response:', error.response.status, error.response.data);
+        }
       }
     };
 

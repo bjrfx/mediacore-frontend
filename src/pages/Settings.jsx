@@ -44,15 +44,30 @@ export default function Settings() {
     setIsRefreshingSubscription(true);
     try {
       const response = await userApi.getMySubscription();
-      const newTier = response?.data?.subscriptionTier || response?.subscriptionTier || SUBSCRIPTION_TIERS.FREE;
+      console.log('[Settings] Raw API response:', response);
+      console.log('[Settings] response.data:', response?.data);
+      console.log('[Settings] response.subscriptionTier:', response?.subscriptionTier);
+      
+      // Try multiple possible response formats
+      const newTier = response?.data?.subscriptionTier || 
+                      response?.subscriptionTier || 
+                      response?.data?.tier ||
+                      response?.tier ||
+                      response?.data?.subscription?.tier ||
+                      SUBSCRIPTION_TIERS.FREE;
+      
+      console.log('[Settings] Parsed tier:', newTier);
+      
       setTierFromAuth(true, newTier);
       addToast({
         message: `Subscription refreshed: ${newTier.replace('_', ' ').toUpperCase()}`,
         type: 'success',
       });
     } catch (error) {
+      console.error('[Settings] Failed to refresh subscription:', error);
+      console.error('[Settings] Error response:', error.response?.data);
       addToast({
-        message: 'Failed to refresh subscription',
+        message: `Failed to refresh subscription: ${error.message}`,
         type: 'error',
       });
     } finally {
