@@ -14,6 +14,9 @@ import { SUBSCRIPTION_TIERS } from '../../config/subscription';
 // Heartbeat interval: 30 seconds
 const HEARTBEAT_INTERVAL = 30000;
 
+// Subscription refresh interval: 60 seconds (to pick up admin changes)
+const SUBSCRIPTION_REFRESH_INTERVAL = 60000;
+
 /**
  * SubscriptionProvider
  * Wraps the app and handles subscription state, enforcement, and modals
@@ -21,6 +24,7 @@ const HEARTBEAT_INTERVAL = 30000;
 export default function SubscriptionProvider({ children }) {
   const { user, isAuthenticated } = useAuthStore();
   const {
+    tier: currentTier,
     setTierFromAuth,
     showUpgradeModal,
     showTimeLimitModal,
@@ -37,31 +41,86 @@ export default function SubscriptionProvider({ children }) {
   
   const { isPlaying, currentTrack, pause } = usePlayerStore();
   const heartbeatIntervalRef = useRef(null);
+  const subscriptionRefreshIntervalRef = useRef(null);
 
-  // Sync subscription tier with auth state
+  // Function to fetch subscription from API
+  const fetchSubscription = useCallback(async () => {
+    if (!isAuthenticated || !user) {
+      setTierFromAuth(false, null);
+      return;
+    }
+    
+    try {
+      const response = await userApi.getMySubscription();
+      const tier = response?.data?.subscriptionTier || response?.subscriptionTier || SUBSCRIPTION_TIERS.FREE;
+      console.log('[Subscription] Fetched tier:', tier, 'Current tier:', currentTier);
+      
+      // Only update if tier has changed
+      if (tier !== currentTier) {
+        console.log('[Subscription] Tier changed from', currentTier, 'to', tier);
+        setTierFromAuth(true, tier);
+      }
+    } catch (error) {
+      console.log('[Subscription] Failed to fetch subscription:', error.message);
+      // Only set to free if we don't have a tier yet
+      if (!currentTier || currentTier === SUBSCRIPTION_TIERS.GUEST) {
+        setTierFromAuth(true, SUBSCRIPTION_TIERS.FREE);
+      }
+    }
+  }, [isAuthenticated, user, currentTier, setTierFromAuth]);
+
+  // Sync subscription tier with auth state on login/logout
   useEffect(() => {
-    const fetchSubscription = async () => {
-      if (isAuthenticated && user) {
-        try {
-          // Try to fetch user's subscription from API
-          const response = await userApi.getMySubscription();
-          // Handle both response formats: response.data.subscriptionTier or response.subscriptionTier
-          const tier = response?.data?.subscriptionTier || response?.subscriptionTier || SUBSCRIPTION_TIERS.FREE;
-          console.log('[Subscription] Fetched tier:', tier);
-          setTierFromAuth(true, tier);
-        } catch (error) {
-          // If API fails, default to free tier for authenticated users
-          console.log('[Subscription] Failed to fetch subscription, defaulting to free tier:', error.message);
-          setTierFromAuth(true, SUBSCRIPTION_TIERS.FREE);
-        }
-      } else {
-        // Not authenticated = guest tier
-        setTierFromAuth(false, null);
+    fetchSubscription();
+  }, [isAuthenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Periodically refresh subscription to pick up admin changes
+  useEffect(() => {
+    if (!isAuthenticated) {
+      if (subscriptionRefreshIntervalRef.current) {
+        clearInterval(subscriptionRefreshIntervalRef.current);
+        subscriptionRefreshIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Refresh subscription every 60 seconds
+    subscriptionRefreshIntervalRef.current = setInterval(() => {
+      fetchSubscription();
+    }, SUBSCRIPTION_REFRESH_INTERVAL);
+
+    return () => {
+      if (subscriptionRefreshIntervalRef.current) {
+        clearInterval(subscriptionRefreshIntervalRef.current);
+        subscriptionRefreshIntervalRef.current = null;
+      }
+    };
+  }, [isAuthenticated, fetchSubscription]);
+
+  // Refresh subscription when window regains focus (user switches back to tab)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isAuthenticated) {
+        console.log('[Subscription] Tab became visible, refreshing subscription...');
+        fetchSubscription();
       }
     };
 
-    fetchSubscription();
-  }, [isAuthenticated, user, setTierFromAuth]);
+    const handleFocus = () => {
+      if (isAuthenticated) {
+        console.log('[Subscription] Window focused, refreshing subscription...');
+        fetchSubscription();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isAuthenticated, fetchSubscription]);
 
   // Heartbeat to track online status
   useEffect(() => {

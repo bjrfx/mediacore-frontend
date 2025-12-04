@@ -91,6 +91,7 @@ x-api-key: mc_your_api_key_here
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `type` | string | - | Filter by type: `video` or `audio` |
+| `language` | string | - | Filter by language code: `en`, `hi`, `te`, etc. |
 | `limit` | number | 50 | Maximum items to return |
 | `orderBy` | string | `createdAt` | Field to sort by |
 | `order` | string | `desc` | Sort order: `asc` or `desc` |
@@ -106,6 +107,8 @@ x-api-key: mc_your_api_key_here
       "title": "Sample Video",
       "subtitle": "Description here",
       "type": "video",
+      "language": "en",
+      "contentGroupId": "cg_1701234567890_abc12345",
       "fileUrl": "https://test.mediacoreapi.masakalirestrobar.ca/public/uploads/video/uuid.mp4",
       "fileSize": 15728640,
       "mimeType": "video/mp4",
@@ -135,11 +138,80 @@ x-api-key: mc_your_api_key_here
     "title": "Sample Video",
     "subtitle": "Description here",
     "type": "video",
+    "language": "en",
+    "contentGroupId": "cg_1701234567890_abc12345",
+    "availableLanguages": ["en", "hi", "te"],
     "fileUrl": "https://test.mediacoreapi.masakalirestrobar.ca/public/uploads/video/uuid.mp4",
     "fileSize": 15728640,
     "mimeType": "video/mp4",
     "createdAt": "2025-11-28T10:30:00.000Z"
   }
+}
+```
+
+---
+
+### GET /api/languages
+
+Get list of available languages with content counts.
+
+**Headers:**
+```
+x-api-key: mc_your_api_key_here
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "count": 5,
+  "data": [
+    { "code": "en", "name": "English", "nativeName": "English", "count": 45 },
+    { "code": "hi", "name": "Hindi", "nativeName": "हिन्दी", "count": 32 },
+    { "code": "te", "name": "Telugu", "nativeName": "తెలుగు", "count": 18 }
+  ]
+}
+```
+
+---
+
+### GET /api/media/languages/:contentGroupId
+
+Get all language variants for a specific content group. Used by the player for language switching.
+
+**Headers:**
+```
+x-api-key: mc_your_api_key_here
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "count": 3,
+  "data": [
+    {
+      "id": "media123",
+      "title": "Sample Video",
+      "language": "en",
+      "fileUrl": "https://...",
+      "type": "video"
+    },
+    {
+      "id": "media124",
+      "title": "Sample Video",
+      "language": "hi",
+      "fileUrl": "https://...",
+      "type": "video"
+    },
+    {
+      "id": "media125",
+      "title": "Sample Video",
+      "language": "te",
+      "fileUrl": "https://...",
+      "type": "video"
+    }
+  ]
 }
 ```
 
@@ -281,6 +353,8 @@ Content-Type: multipart/form-data
 | `title` | string | Yes | Title of the media |
 | `subtitle` | string | No | Description/subtitle |
 | `type` | string | No | `video` (default) or `audio` |
+| `language` | string | No | Language code: `en` (default), `hi`, `te`, etc. |
+| `contentGroupId` | string | No | Group ID to link language variants together |
 
 **Response:**
 ```json
@@ -290,12 +364,37 @@ Content-Type: multipart/form-data
   "data": {
     "id": "media_id",
     "title": "My Video",
+    "language": "en",
+    "contentGroupId": "cg_1701234567890_abc12345",
     "fileUrl": "https://test.mediacoreapi.masakalirestrobar.ca/public/uploads/video/uuid.mp4",
     "fileSize": 15728640,
     "createdAt": "2025-11-28T10:30:00.000Z"
   }
 }
 ```
+
+**Uploading Multi-Language Content:**
+
+To upload the same content in multiple languages:
+
+1. **First upload** - Don't provide `contentGroupId`, it will be auto-generated:
+   ```
+   POST /admin/media
+   FormData: { file, title: "My Video", language: "en" }
+   ```
+   Response will include: `contentGroupId: "cg_1701234567890_abc12345"`
+
+2. **Subsequent uploads** - Use the same `contentGroupId`:
+   ```
+   POST /admin/media
+   FormData: { file, title: "My Video", language: "hi", contentGroupId: "cg_1701234567890_abc12345" }
+   ```
+   ```
+   POST /admin/media
+   FormData: { file, title: "My Video", language: "te", contentGroupId: "cg_1701234567890_abc12345" }
+   ```
+
+Now all three uploads are linked and can be switched in the player.
 
 ---
 
